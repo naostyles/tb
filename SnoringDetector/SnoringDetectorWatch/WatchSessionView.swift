@@ -7,25 +7,21 @@ struct WatchSessionView: View {
 
     var body: some View {
         VStack(spacing: 8) {
-            // Status icon
             ZStack {
                 Circle()
-                    .fill(statusColor.opacity(0.2))
+                    .fill(status.color.opacity(0.2))
                     .frame(width: 60, height: 60)
-
-                Image(systemName: statusIcon)
+                Image(systemName: status.icon)
                     .font(.system(size: 26))
-                    .foregroundStyle(statusColor)
+                    .foregroundStyle(status.color)
             }
             .padding(.top, 4)
 
-            // Status text
-            Text(statusText)
+            Text(status.text)
                 .font(.headline)
-                .foregroundStyle(statusColor)
+                .foregroundStyle(status.color)
                 .multilineTextAlignment(.center)
 
-            // Intensity bar (when recording and snoring)
             if dataModel.isRecording && dataModel.isSnoringDetected {
                 ProgressView(value: dataModel.intensity)
                     .tint(.orange)
@@ -34,7 +30,6 @@ struct WatchSessionView: View {
 
             Spacer()
 
-            // Control button
             if connectivity.isPhoneReachable {
                 Button {
                     if dataModel.isRecording {
@@ -66,19 +61,13 @@ struct WatchSessionView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    private var statusColor: Color {
-        if !dataModel.isRecording { return .indigo }
-        return dataModel.isSnoringDetected ? .orange : .green
-    }
-
-    private var statusIcon: String {
-        if !dataModel.isRecording { return "moon.zzz.fill" }
-        return dataModel.isSnoringDetected ? "waveform.badge.exclamationmark" : "waveform"
-    }
-
-    private var statusText: String {
-        if !dataModel.isRecording { return "待機中" }
-        return dataModel.isSnoringDetected ? "いびき検出!" : "静かです"
+    private var status: (color: Color, icon: String, text: String) {
+        guard dataModel.isRecording else {
+            return (.indigo, "moon.zzz.fill", "待機中")
+        }
+        return dataModel.isSnoringDetected
+            ? (.orange, "waveform.badge.exclamationmark", "いびき検出!")
+            : (.green,  "waveform",                      "静かです")
     }
 }
 
@@ -93,7 +82,6 @@ struct WatchSummaryView: View {
                     .foregroundStyle(.secondary)
 
                 if let summary = dataModel.lastSummary {
-                    // Score
                     HStack {
                         Text("\(summary.qualityScore)")
                             .font(.system(size: 36, weight: .bold, design: .rounded))
@@ -111,7 +99,7 @@ struct WatchSummaryView: View {
                     Divider()
 
                     WatchStatRow(label: "睡眠時間", value: summary.formattedDuration)
-                    WatchStatRow(label: "いびき", value: String(format: "%.0f%%", summary.snoringPercentage))
+                    WatchStatRow(label: "いびき",   value: String(format: "%.0f%%", summary.snoringPercentage))
                     WatchStatRow(label: "検出回数", value: "\(summary.eventCount)回")
                 } else {
                     Text("まだ記録がありません")

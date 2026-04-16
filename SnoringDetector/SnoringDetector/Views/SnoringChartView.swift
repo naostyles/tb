@@ -21,11 +21,7 @@ struct SnoringChartView: View {
                             y: .value("いびき割合", session.snoringPercentage)
                         )
                         .foregroundStyle(
-                            LinearGradient(
-                                colors: [.indigo, .purple],
-                                startPoint: .bottom,
-                                endPoint: .top
-                            )
+                            LinearGradient(colors: [.indigo, .purple], startPoint: .bottom, endPoint: .top)
                         )
                         .cornerRadius(4)
                         .annotation(position: .top, alignment: .center) {
@@ -51,16 +47,14 @@ struct SnoringChartView: View {
                         AxisGridLine()
                         AxisValueLabel {
                             if let v = value.as(Double.self) {
-                                Text("\(Int(v))%")
-                                    .font(.caption2)
+                                Text("\(Int(v))%").font(.caption2)
                             }
                         }
                     }
                 }
                 .chartXAxis {
                     AxisMarks(values: .stride(by: .day)) { _ in
-                        AxisValueLabel(format: .dateTime.month().day())
-                            .font(.caption2)
+                        AxisValueLabel(format: .dateTime.month().day()).font(.caption2)
                     }
                 }
                 .frame(height: 180)
@@ -74,11 +68,9 @@ struct SnoringChartView: View {
 
     private var averageSnoringPercentage: Double {
         guard !sessions.isEmpty else { return 0 }
-        return sessions.map { $0.snoringPercentage }.reduce(0, +) / Double(sessions.count)
+        return sessions.map(\.snoringPercentage).reduce(0, +) / Double(sessions.count)
     }
 }
-
-// MARK: - Session Timeline Chart
 
 struct SessionTimelineChart: View {
     let session: SleepSession
@@ -103,10 +95,10 @@ struct SessionTimelineChart: View {
                     ForEach(session.snoringEvents) { event in
                         RectangleMark(
                             xStart: .value("開始", event.timeOffset / 60),
-                            xEnd: .value("終了", (event.timeOffset + event.duration) / 60),
-                            y: .value("強度", event.intensity)
+                            xEnd:   .value("終了", (event.timeOffset + event.duration) / 60),
+                            y:      .value("強度", event.intensity)
                         )
-                        .foregroundStyle(intensityColor(event.intensity).opacity(0.8))
+                        .foregroundStyle(event.intensityLevel.color.opacity(0.8))
                         .cornerRadius(2)
                     }
                 }
@@ -120,13 +112,5 @@ struct SessionTimelineChart: View {
         .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .shadow(color: .black.opacity(0.06), radius: 6, y: 2)
-    }
-
-    private func intensityColor(_ intensity: Double) -> Color {
-        switch intensity {
-        case 0..<0.33: return .yellow
-        case 0.33..<0.66: return .orange
-        default: return .red
-        }
     }
 }

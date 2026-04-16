@@ -1,6 +1,26 @@
 import WatchConnectivity
 import Combine
 
+// Keys shared between iPhone and Watch targets
+enum WatchMessageKey {
+    static let isRecording    = "isRecording"
+    static let snoringDetected = "snoringDetected"
+    static let intensity      = "intensity"
+    static let command        = "command"
+    static let type           = "type"
+    static let duration       = "duration"
+    static let snoringPct     = "snoringPercentage"
+    static let qualityScore   = "qualityScore"
+    static let eventCount     = "eventCount"
+
+    static let typeSessionSummary = "sessionSummary"
+}
+
+enum WatchCommand {
+    static let start = "startRecording"
+    static let stop  = "stopRecording"
+}
+
 class WatchConnectivityManager: NSObject, ObservableObject {
     static let shared = WatchConnectivityManager()
 
@@ -17,57 +37,44 @@ class WatchConnectivityManager: NSObject, ObservableObject {
 
     func sendSessionStatus(isRecording: Bool, snoringDetected: Bool, intensity: Double) {
         guard WCSession.default.isReachable else { return }
-        let message: [String: Any] = [
-            "isRecording": isRecording,
-            "snoringDetected": snoringDetected,
-            "intensity": intensity
-        ]
-        WCSession.default.sendMessage(message, replyHandler: nil)
+        WCSession.default.sendMessage([
+            WatchMessageKey.isRecording:     isRecording,
+            WatchMessageKey.snoringDetected: snoringDetected,
+            WatchMessageKey.intensity:       intensity
+        ], replyHandler: nil)
     }
 
     func sendSessionSummary(session: SleepSession) {
         guard WCSession.default.activationState == .activated else { return }
-        let summary: [String: Any] = [
-            "type": "sessionSummary",
-            "duration": session.duration,
-            "snoringPercentage": session.snoringPercentage,
-            "qualityScore": session.qualityScore,
-            "eventCount": session.snoringEvents.count
-        ]
-        try? WCSession.default.updateApplicationContext(summary)
+        try? WCSession.default.updateApplicationContext([
+            WatchMessageKey.type:         WatchMessageKey.typeSessionSummary,
+            WatchMessageKey.duration:     session.duration,
+            WatchMessageKey.snoringPct:   session.snoringPercentage,
+            WatchMessageKey.qualityScore: session.qualityScore,
+            WatchMessageKey.eventCount:   session.snoringEvents.count
+        ])
     }
 }
 
 extension WatchConnectivityManager: WCSessionDelegate {
     func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
-        DispatchQueue.main.async {
-            self.isWatchReachable = session.isReachable
-        }
+        DispatchQueue.main.async { self.isWatchReachable = session.isReachable }
     }
 
     func sessionDidBecomeInactive(_ session: WCSession) {}
+
     func sessionDidDeactivate(_ session: WCSession) {
         WCSession.default.activate()
     }
 
     func sessionReachabilityDidChange(_ session: WCSession) {
-        DispatchQueue.main.async {
-            self.isWatchReachable = session.isReachable
-        }
+        DispatchQueue.main.async { self.isWatchReachable = session.isReachable }
     }
 
     func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
+        guard let command = message[WatchMessageKey.command] as? String else { return }
         DispatchQueue.main.async {
-            if let command = message["command"] as? String {
-                switch command {
-                case "startRecording":
-                    self.watchRecordingRequested = true
-                case "stopRecording":
-                    self.watchRecordingRequested = false
-                default:
-                    break
-                }
-            }
+            self.watchRecordingRequested = command == WatchCommand.start
         }
     }
 }

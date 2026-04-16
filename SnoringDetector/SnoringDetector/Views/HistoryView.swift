@@ -12,7 +12,6 @@ struct HistoryView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
-                    // Period picker
                     Picker("期間", selection: $selectedPeriod) {
                         ForEach(periods, id: \.self) { p in
                             Text("過去\(p)日").tag(p)
@@ -24,11 +23,9 @@ struct HistoryView: View {
                     if dataStore.sessions.isEmpty {
                         EmptyHistoryView()
                     } else {
-                        // Chart
                         SnoringChartView(sessions: dataStore.sessionsForLastNDays(selectedPeriod))
                             .padding(.horizontal)
 
-                        // Session list
                         VStack(spacing: 12) {
                             ForEach(dataStore.sessionsForLastNDays(selectedPeriod)) { session in
                                 SessionRowView(session: session)
@@ -78,19 +75,18 @@ struct SessionRowView: View {
 
     var body: some View {
         HStack(spacing: 16) {
-            // Quality circle
             ZStack {
                 Circle()
-                    .stroke(scoreColor(session.qualityScore).opacity(0.2), lineWidth: 4)
+                    .stroke(session.qualityColor.opacity(0.2), lineWidth: 4)
                     .frame(width: 52, height: 52)
                 Circle()
                     .trim(from: 0, to: CGFloat(session.qualityScore) / 100)
-                    .stroke(scoreColor(session.qualityScore), style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                    .stroke(session.qualityColor, style: StrokeStyle(lineWidth: 4, lineCap: .round))
                     .rotationEffect(.degrees(-90))
                     .frame(width: 52, height: 52)
                 Text("\(session.qualityScore)")
                     .font(.system(size: 14, weight: .bold, design: .rounded))
-                    .foregroundStyle(scoreColor(session.qualityScore))
+                    .foregroundStyle(session.qualityColor)
             }
 
             VStack(alignment: .leading, spacing: 4) {
@@ -114,14 +110,5 @@ struct SessionRowView: View {
         .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .shadow(color: .black.opacity(0.06), radius: 6, y: 2)
-    }
-
-    private func scoreColor(_ score: Int) -> Color {
-        switch score {
-        case 80...100: return .green
-        case 60..<80: return .yellow
-        case 40..<60: return .orange
-        default: return .red
-        }
     }
 }

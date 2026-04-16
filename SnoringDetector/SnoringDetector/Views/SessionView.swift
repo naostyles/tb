@@ -10,14 +10,11 @@ struct SessionView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                // Dark sleep background
-                Color(red: 0.05, green: 0.05, blue: 0.15)
-                    .ignoresSafeArea()
+                Color(red: 0.05, green: 0.05, blue: 0.15).ignoresSafeArea()
 
                 VStack(spacing: 32) {
                     Spacer()
 
-                    // Elapsed time
                     VStack(spacing: 4) {
                         Text("計測時間")
                             .font(.subheadline)
@@ -27,31 +24,19 @@ struct SessionView: View {
                             .foregroundStyle(.white)
                     }
 
-                    // Audio level visualization
                     AudioLevelView(level: recorder.audioLevel)
                         .frame(height: 80)
                         .padding(.horizontal)
 
-                    // Snoring status
                     SnoringStatusView(isSnoring: engine.isSnoringDetected, intensity: engine.currentIntensity)
 
-                    // Stats
                     HStack(spacing: 40) {
-                        MiniStat(
-                            value: "\(engine.snoringEvents.count)",
-                            label: "検出回数",
-                            color: .orange
-                        )
-                        MiniStat(
-                            value: String(format: "%.0f%%", intensityPercent),
-                            label: "強度",
-                            color: .red
-                        )
+                        MiniStat(value: "\(engine.snoringEvents.count)", label: "検出回数", color: .orange)
+                        MiniStat(value: String(format: "%.0f%%", engine.currentIntensity * 100), label: "強度", color: .red)
                     }
 
                     Spacer()
 
-                    // Stop button
                     Button {
                         timer?.invalidate()
                         sessionManager.stopRecording()
@@ -75,17 +60,11 @@ struct SessionView: View {
             .toolbarColorScheme(.dark, for: .navigationBar)
         }
         .onAppear {
-            timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
-                elapsedTime += 1
-            }
+            timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in elapsedTime += 1 }
         }
         .onDisappear {
             timer?.invalidate()
         }
-    }
-
-    private var intensityPercent: Double {
-        engine.currentIntensity * 100
     }
 
     private func formatTime(_ seconds: TimeInterval) -> String {
@@ -99,7 +78,6 @@ struct SessionView: View {
 struct SnoringStatusView: View {
     let isSnoring: Bool
     let intensity: Double
-
     @State private var animating = false
 
     var body: some View {
@@ -121,7 +99,6 @@ struct SnoringStatusView: View {
                 Circle()
                     .fill(isSnoring ? Color.orange.opacity(0.3) : Color.white.opacity(0.08))
                     .frame(width: 80, height: 80)
-
                 Image(systemName: isSnoring ? "waveform.badge.exclamationmark" : "moon.zzz.fill")
                     .font(.system(size: 32))
                     .foregroundStyle(isSnoring ? .orange : .white.opacity(0.5))
@@ -138,9 +115,7 @@ struct SnoringStatusView: View {
                     .frame(width: 160)
             }
         }
-        .onChange(of: isSnoring) { _, snoring in
-            animating = snoring
-        }
+        .onChange(of: isSnoring) { _, snoring in animating = snoring }
         .onAppear { animating = isSnoring }
     }
 }

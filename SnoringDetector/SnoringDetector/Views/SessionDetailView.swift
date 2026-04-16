@@ -8,43 +8,19 @@ struct SessionDetailView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 20) {
-                    // Score header
                     ScoreHeaderView(session: session)
 
-                    // Key stats grid
                     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
-                        DetailStatCard(
-                            title: "睡眠時間",
-                            value: session.formattedDuration,
-                            icon: "clock.fill",
-                            color: .indigo
-                        )
-                        DetailStatCard(
-                            title: "いびき時間",
-                            value: formatSnoringTime(session.totalSnoringDuration),
-                            icon: "waveform",
-                            color: .orange
-                        )
-                        DetailStatCard(
-                            title: "いびき割合",
-                            value: String(format: "%.1f%%", session.snoringPercentage),
-                            icon: "percent",
-                            color: .purple
-                        )
-                        DetailStatCard(
-                            title: "検出回数",
-                            value: "\(session.snoringEvents.count)回",
-                            icon: "waveform.badge.exclamationmark",
-                            color: .red
-                        )
+                        DetailStatCard(title: "睡眠時間",   value: session.formattedDuration,                           icon: "clock.fill",                  color: .indigo)
+                        DetailStatCard(title: "いびき時間", value: formatSnoringTime(session.totalSnoringDuration),      icon: "waveform",                    color: .orange)
+                        DetailStatCard(title: "いびき割合", value: String(format: "%.1f%%", session.snoringPercentage), icon: "percent",                     color: .purple)
+                        DetailStatCard(title: "検出回数",   value: "\(session.snoringEvents.count)回",                  icon: "waveform.badge.exclamationmark", color: .red)
                     }
                     .padding(.horizontal)
 
-                    // Timeline
                     SessionTimelineChart(session: session)
                         .padding(.horizontal)
 
-                    // Event list
                     if !session.snoringEvents.isEmpty {
                         EventListView(events: session.snoringEvents)
                             .padding(.horizontal)
@@ -65,10 +41,7 @@ struct SessionDetailView: View {
     private func formatSnoringTime(_ duration: TimeInterval) -> String {
         let minutes = Int(duration) / 60
         let seconds = Int(duration) % 60
-        if minutes > 0 {
-            return "\(minutes)分\(seconds)秒"
-        }
-        return "\(seconds)秒"
+        return minutes > 0 ? "\(minutes)分\(seconds)秒" : "\(seconds)秒"
     }
 }
 
@@ -79,17 +52,17 @@ struct ScoreHeaderView: View {
         VStack(spacing: 8) {
             ZStack {
                 Circle()
-                    .stroke(scoreColor.opacity(0.2), lineWidth: 12)
+                    .stroke(session.qualityColor.opacity(0.2), lineWidth: 12)
                     .frame(width: 120, height: 120)
                 Circle()
                     .trim(from: 0, to: CGFloat(session.qualityScore) / 100)
-                    .stroke(scoreColor, style: StrokeStyle(lineWidth: 12, lineCap: .round))
+                    .stroke(session.qualityColor, style: StrokeStyle(lineWidth: 12, lineCap: .round))
                     .rotationEffect(.degrees(-90))
                     .frame(width: 120, height: 120)
                 VStack(spacing: 0) {
                     Text("\(session.qualityScore)")
                         .font(.system(size: 40, weight: .bold, design: .rounded))
-                        .foregroundStyle(scoreColor)
+                        .foregroundStyle(session.qualityColor)
                     Text("点")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -98,7 +71,7 @@ struct ScoreHeaderView: View {
 
             Text(session.qualityLabel)
                 .font(.title3.bold())
-                .foregroundStyle(scoreColor)
+                .foregroundStyle(session.qualityColor)
 
             Text("睡眠スコア")
                 .font(.caption)
@@ -111,15 +84,6 @@ struct ScoreHeaderView: View {
         .shadow(color: .black.opacity(0.06), radius: 6, y: 2)
         .padding(.horizontal)
     }
-
-    private var scoreColor: Color {
-        switch session.qualityScore {
-        case 80...100: return .green
-        case 60..<80: return .yellow
-        case 40..<60: return .orange
-        default: return .red
-        }
-    }
 }
 
 struct DetailStatCard: View {
@@ -130,11 +94,8 @@ struct DetailStatCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Image(systemName: icon)
-                    .foregroundStyle(color)
-                Spacer()
-            }
+            Image(systemName: icon)
+                .foregroundStyle(color)
             Text(value)
                 .font(.title3.bold())
             Text(title)
@@ -142,6 +103,7 @@ struct DetailStatCard: View {
                 .foregroundStyle(.secondary)
         }
         .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .shadow(color: .black.opacity(0.06), radius: 4, y: 2)
@@ -159,7 +121,7 @@ struct EventListView: View {
             ForEach(events) { event in
                 HStack {
                     Image(systemName: event.intensityLevel.systemImage)
-                        .foregroundStyle(Color(event.intensityLevel.color))
+                        .foregroundStyle(event.intensityLevel.color)
                         .frame(width: 28)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(formatOffset(event.timeOffset))
@@ -174,6 +136,7 @@ struct EventListView: View {
                         .foregroundStyle(.secondary)
                 }
                 .padding(.vertical, 6)
+
                 if event.id != events.last?.id {
                     Divider()
                 }
@@ -189,12 +152,14 @@ struct EventListView: View {
         let h = Int(offset) / 3600
         let m = (Int(offset) % 3600) / 60
         let s = Int(offset) % 60
-        if h > 0 { return String(format: "%d:%02d:%02d 経過", h, m, s) }
-        return String(format: "%d:%02d 経過", m, s)
+        return h > 0
+            ? String(format: "%d:%02d:%02d 経過", h, m, s)
+            : String(format: "%d:%02d 経過", m, s)
     }
 
     private func formatDuration(_ duration: TimeInterval) -> String {
-        if duration < 60 { return "\(Int(duration))秒" }
-        return "\(Int(duration / 60))分\(Int(duration.truncatingRemainder(dividingBy: 60)))秒"
+        duration < 60
+            ? "\(Int(duration))秒"
+            : "\(Int(duration / 60))分\(Int(duration.truncatingRemainder(dividingBy: 60)))秒"
     }
 }

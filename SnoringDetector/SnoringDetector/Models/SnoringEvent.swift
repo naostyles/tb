@@ -1,10 +1,11 @@
 import Foundation
+import SwiftUI
 
 struct SnoringEvent: Identifiable, Codable {
     let id: UUID
     let startTime: Date
     var endTime: Date?
-    var intensity: Double  // 0.0 - 1.0
+    var intensity: Double  // 0.0 – 1.0
     var timeOffset: TimeInterval  // seconds from session start
 
     init(id: UUID = UUID(), startTime: Date = Date(), intensity: Double = 0.5, timeOffset: TimeInterval = 0) {
@@ -32,19 +33,19 @@ struct SnoringEvent: Identifiable, Codable {
         case medium = "普通"
         case high = "強い"
 
-        var color: String {
+        var color: Color {
             switch self {
-            case .low: return "yellow"
-            case .medium: return "orange"
-            case .high: return "red"
+            case .low:    return .yellow
+            case .medium: return .orange
+            case .high:   return .red
             }
         }
 
         var systemImage: String {
             switch self {
-            case .low: return "waveform.path"
+            case .low:    return "waveform.path"
             case .medium: return "waveform"
-            case .high: return "waveform.badge.exclamationmark"
+            case .high:   return "waveform.badge.exclamationmark"
             }
         }
     }

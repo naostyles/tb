@@ -3,24 +3,16 @@ import SwiftUI
 struct DashboardView: View {
     @EnvironmentObject var dataStore: DataStore
     @StateObject private var sessionManager = SessionManager()
-    @State private var showingSession = false
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 20) {
-                    // Header stats
                     WeeklyStatsCard(dataStore: dataStore)
-
-                    // Start/Stop button
                     RecordButton(sessionManager: sessionManager)
-
-                    // Recent session
                     if let lastSession = dataStore.sessions.first {
                         LastSessionCard(session: lastSession)
                     }
-
-                    // Quick tips
                     TipsCard()
                 }
                 .padding()
@@ -101,6 +93,8 @@ struct StatItem: View {
 
 struct RecordButton: View {
     @ObservedObject var sessionManager: SessionManager
+    @State private var pulseScale: CGFloat = 1.0
+    @State private var pulseOpacity: Double = 0.6
 
     var body: some View {
         VStack(spacing: 16) {
@@ -113,17 +107,12 @@ struct RecordButton: View {
                     Circle()
                         .stroke(Color.red.opacity(0.3), lineWidth: 2)
                         .frame(width: 160, height: 160)
-                        .scaleEffect(sessionManager.pulseScale)
-                        .opacity(sessionManager.pulseOpacity)
-                        .animation(.easeInOut(duration: 1.2).repeatForever(autoreverses: false), value: sessionManager.pulseScale)
+                        .scaleEffect(pulseScale)
+                        .opacity(pulseOpacity)
                 }
 
                 Button {
-                    if sessionManager.isRecording {
-                        sessionManager.stopRecording()
-                    } else {
-                        sessionManager.startRecording()
-                    }
+                    sessionManager.isRecording ? sessionManager.stopRecording() : sessionManager.startRecording()
                 } label: {
                     VStack(spacing: 8) {
                         Image(systemName: sessionManager.isRecording ? "stop.circle.fill" : "moon.zzz.fill")
@@ -135,23 +124,28 @@ struct RecordButton: View {
                     }
                 }
             }
-            .onAppear { sessionManager.startPulse() }
 
-            if sessionManager.isRecording {
-                Text("計測中...")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            } else {
-                Text("タップして睡眠中のいびきを計測")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
+            Text(sessionManager.isRecording ? "計測中..." : "タップして睡眠中のいびきを計測")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
         }
         .padding()
         .frame(maxWidth: .infinity)
         .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .shadow(color: .black.opacity(0.08), radius: 8, y: 2)
+        .onChange(of: sessionManager.isRecording) { _, recording in
+            if recording { startPulse() }
+        }
+    }
+
+    private func startPulse() {
+        pulseScale = 1.0
+        pulseOpacity = 0.6
+        withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: false)) {
+            pulseScale = 1.3
+            pulseOpacity = 0
+        }
     }
 }
 
@@ -181,11 +175,11 @@ struct LastSessionCard: View {
                             .foregroundStyle(.secondary)
                         Text("\(session.qualityScore)")
                             .font(.system(size: 48, weight: .bold, design: .rounded))
-                            .foregroundStyle(scoreColor(session.qualityScore))
+                            .foregroundStyle(session.qualityColor)
                     }
 
                     VStack(alignment: .leading, spacing: 8) {
-                        InfoRow(label: "睡眠時間", value: session.formattedDuration)
+                        InfoRow(label: "睡眠時間",   value: session.formattedDuration)
                         InfoRow(label: "いびき割合", value: String(format: "%.1f%%", session.snoringPercentage))
                         InfoRow(label: "いびき回数", value: "\(session.snoringEvents.count)回")
                     }
@@ -211,15 +205,6 @@ struct LastSessionCard: View {
             SessionDetailView(session: session)
         }
     }
-
-    private func scoreColor(_ score: Int) -> Color {
-        switch score {
-        case 80...100: return .green
-        case 60..<80: return .yellow
-        case 40..<60: return .orange
-        default: return .red
-        }
-    }
 }
 
 struct InfoRow: View {
@@ -242,10 +227,10 @@ struct InfoRow: View {
 
 struct TipsCard: View {
     private let tips = [
-        ("pillowcase", "横向きで寝るといびきが減ることがあります"),
-        ("moon.stars", "就寝前のアルコールを控えましょう"),
-        ("humidity", "部屋の湿度を50〜60%に保ちましょう"),
-        ("bed.double", "枕の高さを調整してみましょう")
+        "横向きで寝るといびきが減ることがあります",
+        "就寝前のアルコールを控えましょう",
+        "部屋の湿度を50〜60%に保ちましょう",
+        "枕の高さを調整してみましょう"
     ]
 
     var body: some View {
@@ -253,14 +238,13 @@ struct TipsCard: View {
             Text("睡眠のヒント")
                 .font(.headline)
 
-            ForEach(tips, id: \.0) { tip in
+            ForEach(tips, id: \.self) { tip in
                 HStack(alignment: .top, spacing: 12) {
                     Image(systemName: "lightbulb.fill")
                         .foregroundStyle(.yellow)
                         .frame(width: 20)
-                    Text(tip.1)
+                    Text(tip)
                         .font(.subheadline)
-                        .foregroundStyle(.primary)
                 }
             }
         }
@@ -276,8 +260,6 @@ struct TipsCard: View {
 @MainActor
 class SessionManager: ObservableObject {
     @Published var isRecording = false
-    @Published var pulseScale: CGFloat = 1.0
-    @Published var pulseOpacity: Double = 0.6
 
     private let audioRecorder = AudioRecorder.shared
     private let detectionEngine = SnoringDetectionEngine.shared
@@ -286,8 +268,7 @@ class SessionManager: ObservableObject {
 
     func startRecording() {
         Task {
-            let granted = await audioRecorder.requestPermission()
-            guard granted else { return }
+            guard await audioRecorder.requestPermission() else { return }
             do {
                 let url = try audioRecorder.startRecording()
                 detectionEngine.reset()
@@ -295,13 +276,12 @@ class SessionManager: ObservableObject {
                 session.audioFileURL = url
                 currentSession = session
 
-                let sessionStartTime = session.startDate
-                let sampleRate = 44100.0
-                detectionEngine.configure(sampleRate: sampleRate)
+                let sessionStart = session.startDate
+                detectionEngine.configure(sampleRate: 44100)
 
                 audioRecorder.onAudioBuffer = { [weak self] buffer, _ in
                     guard let self else { return }
-                    self.detectionEngine.process(buffer: buffer, sessionStartTime: sessionStartTime)
+                    self.detectionEngine.process(buffer: buffer, sessionStartTime: sessionStart)
                     WatchConnectivityManager.shared.sendSessionStatus(
                         isRecording: true,
                         snoringDetected: self.detectionEngine.isSnoringDetected,
@@ -319,18 +299,12 @@ class SessionManager: ObservableObject {
         audioRecorder.stopRecording()
         if let session = currentSession {
             dataStore.endSession(session: session, events: detectionEngine.snoringEvents)
-            let finished = dataStore.sessions.first!
-            WatchConnectivityManager.shared.sendSessionSummary(session: finished)
+            if let finished = dataStore.sessions.first {
+                WatchConnectivityManager.shared.sendSessionSummary(session: finished)
+            }
         }
         currentSession = nil
         detectionEngine.reset()
         isRecording = false
-    }
-
-    func startPulse() {
-        withAnimation(.easeInOut(duration: 1.2).repeatForever(autoreverses: false)) {
-            pulseScale = 1.3
-            pulseOpacity = 0
-        }
     }
 }
