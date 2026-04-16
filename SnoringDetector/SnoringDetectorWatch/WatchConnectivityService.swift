@@ -1,4 +1,5 @@
 import WatchConnectivity
+import WatchKit
 import Foundation
 
 class WatchConnectivityService: NSObject, ObservableObject {
