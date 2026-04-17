@@ -23,6 +23,11 @@
 		AA000014 /* SnoringChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA100014 /* SnoringChartView.swift */; };
 		AA000015 /* SessionDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA100015 /* SessionDetailView.swift */; };
 		AA000016 /* AudioLevelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA100016 /* AudioLevelView.swift */; };
+		AA000019 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA100019 /* AppDelegate.swift */; };
+		AA000020 /* ScheduleManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA100020 /* ScheduleManager.swift */; };
+		AA000021 /* AudioPlayerManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA100021 /* AudioPlayerManager.swift */; };
+		AA000022 /* SessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA100022 /* SessionManager.swift */; };
+		AA000023 /* Formatters.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA100023 /* Formatters.swift */; };
 		AA000017 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AA100017 /* Assets.xcassets */; };
 		AA000018 /* Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = AA100018 /* Info.plist */; };
 		/* Watch */
@@ -51,6 +56,11 @@
 		AA100014 /* SnoringChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnoringChartView.swift; sourceTree = "<group>"; };
 		AA100015 /* SessionDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionDetailView.swift; sourceTree = "<group>"; };
 		AA100016 /* AudioLevelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioLevelView.swift; sourceTree = "<group>"; };
+		AA100019 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		AA100020 /* ScheduleManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleManager.swift; sourceTree = "<group>"; };
+		AA100021 /* AudioPlayerManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayerManager.swift; sourceTree = "<group>"; };
+		AA100022 /* SessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionManager.swift; sourceTree = "<group>"; };
+		AA100023 /* Formatters.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Formatters.swift; sourceTree = "<group>"; };
 		AA100017 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		AA100018 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		AA200000 /* SnoringDetector.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SnoringDetector.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -77,10 +87,12 @@
 			isa = PBXGroup;
 			children = (
 				AA100001 /* SnoringDetectorApp.swift */,
+				AA100019 /* AppDelegate.swift */,
 				AA100002 /* ContentView.swift */,
 				AA300010 /* Views */,
 				AA300020 /* Services */,
 				AA300030 /* Models */,
+				AA300040 /* Utilities */,
 				AA100017 /* Assets.xcassets */,
 				AA100018 /* Info.plist */,
 			);
@@ -106,8 +118,11 @@
 			children = (
 				AA100007 /* SnoringDetectionEngine.swift */,
 				AA100008 /* AudioRecorder.swift */,
+				AA100021 /* AudioPlayerManager.swift */,
 				AA100011 /* DataStore.swift */,
 				AA100012 /* HealthKitManager.swift */,
+				AA100020 /* ScheduleManager.swift */,
+				AA100022 /* SessionManager.swift */,
 				AA100013 /* WatchConnectivityManager.swift */,
 			);
 			path = Services;
@@ -120,6 +135,14 @@
 				AA100010 /* SnoringEvent.swift */,
 			);
 			path = Models;
+			sourceTree = "<group>";
+		};
+		AA300040 /* Utilities */ = {
+			isa = PBXGroup;
+			children = (
+				AA100023 /* Formatters.swift */,
+			);
+			path = Utilities;
 			sourceTree = "<group>";
 		};
 		AB300001 /* SnoringDetectorWatch */ = {
@@ -238,6 +261,11 @@
 				AA000014 /* SnoringChartView.swift in Sources */,
 				AA000015 /* SessionDetailView.swift in Sources */,
 				AA000016 /* AudioLevelView.swift in Sources */,
+				AA000019 /* AppDelegate.swift in Sources */,
+				AA000020 /* ScheduleManager.swift in Sources */,
+				AA000021 /* AudioPlayerManager.swift in Sources */,
+				AA000022 /* SessionManager.swift in Sources */,
+				AA000023 /* Formatters.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
