@@ -34,7 +34,7 @@ struct SessionView: View {
                         .font(.caption.weight(.medium))
                         .foregroundStyle(.white.opacity(0.5))
                         .tracking(1)
-                    Text(formatTime(elapsedTime))
+                    Text(TimeFormat.clock(elapsedTime))
                         .font(.system(size: 60, weight: .thin, design: .monospaced))
                         .foregroundStyle(.white)
                         .contentTransition(.numericText())
@@ -96,10 +96,6 @@ struct SessionView: View {
             }
         }
         .onDisappear { timer?.invalidate() }
-    }
-
-    private func formatTime(_ s: TimeInterval) -> String {
-        String(format: "%02d:%02d:%02d", Int(s) / 3600, (Int(s) % 3600) / 60, Int(s) % 60)
     }
 }
 

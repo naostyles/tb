@@ -13,11 +13,8 @@ struct HistoryView: View {
     }
 
     private var grouped: [(key: String, sessions: [SleepSession])] {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "ja_JP")
-        formatter.dateFormat = "M月d日(E)"
         let dict = Dictionary(grouping: sessions) { s in
-            formatter.string(from: s.startDate)
+            AppDateFormatter.sessionDate.string(from: s.startDate)
         }
         return dict.map { (key: $0.key, sessions: $0.value) }
             .sorted { a, b in
@@ -122,10 +119,7 @@ struct SessionRow: View {
     }
 
     private func startTimeLabel(_ date: Date) -> String {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "ja_JP")
-        f.dateFormat = "HH:mm 就寝"
-        return f.string(from: date)
+        AppDateFormatter.bedtime.string(from: date)
     }
 }
 

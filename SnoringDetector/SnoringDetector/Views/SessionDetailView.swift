@@ -38,7 +38,7 @@ struct SessionDetailView: View {
                 Section("詳細データ") {
                     MetricRow(label: "睡眠時間",   value: session.formattedDuration,
                               icon: "clock.fill",  tint: .indigo)
-                    MetricRow(label: "いびき時間",  value: formatSnoringTime(session.totalSnoringDuration),
+                    MetricRow(label: "いびき時間",  value: TimeFormat.shortDuration(session.totalSnoringDuration),
                               icon: "waveform",    tint: .orange)
                     MetricRow(label: "いびき割合",  value: String(format: "%.1f%%", session.snoringPercentage),
                               icon: "percent",     tint: .purple)
@@ -82,11 +82,6 @@ struct SessionDetailView: View {
         }
         .onDisappear { audioPlayer.stop() }
     }
-
-    private func formatSnoringTime(_ d: TimeInterval) -> String {
-        let m = Int(d) / 60, s = Int(d) % 60
-        return m > 0 ? "\(m)分\(s)秒" : "\(s)秒"
-    }
 }
 
 // MARK: - Playback Section
@@ -105,11 +100,11 @@ struct AudioPlaybackSection: View {
             )
 
             HStack {
-                Text(formatTime(player.currentTime))
+                Text(TimeFormat.playback(player.currentTime))
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
                 Spacer()
-                Text(formatTime(player.duration))
+                Text(TimeFormat.playback(player.duration))
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
             }
@@ -134,10 +129,6 @@ struct AudioPlaybackSection: View {
             .foregroundStyle(.primary)
         }
         .padding(.vertical, 8)
-    }
-
-    private func formatTime(_ t: TimeInterval) -> String {
-        String(format: "%d:%02d", Int(t) / 60, Int(t) % 60)
     }
 }
 
@@ -272,7 +263,7 @@ struct SnoringEventRow: View {
                 .frame(width: 28)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(formatOffset(event.timeOffset))
+                Text(TimeFormat.elapsed(event.timeOffset))
                     .font(.subheadline.weight(.medium))
                 Text(event.intensityLevel.rawValue)
                     .font(.caption)
@@ -281,7 +272,7 @@ struct SnoringEventRow: View {
 
             Spacer()
 
-            Text(formatDuration(event.duration))
+            Text(TimeFormat.shortDuration(event.duration))
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.secondary)
 
@@ -295,15 +286,5 @@ struct SnoringEventRow: View {
                 .padding(.leading, 8)
             }
         }
-    }
-
-    private func formatOffset(_ t: TimeInterval) -> String {
-        let h = Int(t) / 3600, m = (Int(t) % 3600) / 60, s = Int(t) % 60
-        return h > 0 ? String(format: "%d:%02d:%02d 経過", h, m, s)
-                     : String(format: "%d:%02d 経過", m, s)
-    }
-
-    private func formatDuration(_ d: TimeInterval) -> String {
-        d < 60 ? "\(Int(d))秒" : "\(Int(d / 60))分\(Int(d.truncatingRemainder(dividingBy: 60)))秒"
     }
 }

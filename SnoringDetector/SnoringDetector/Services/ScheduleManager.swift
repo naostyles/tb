@@ -63,9 +63,6 @@ final class ScheduleManager: ObservableObject {
     }
 
     var formattedTime: String {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "ja_JP")
-        f.timeStyle = .short
-        return f.string(from: scheduledTime)
+        AppDateFormatter.shortTime.string(from: scheduledTime)
     }
 }

@@ -136,7 +136,7 @@ struct SettingsView: View {
     }
 
     private func applySettings() {
-        var config = SnoringDetectionEngine.Configuration()
+        var config = SnoringDetectionEngine.shared.configuration
         config.amplitudeThreshold        = Float(amplitudeThreshold)
         config.snoringFrequencyLow       = Float(snoringFrequencyLow)
         config.snoringFrequencyHigh      = Float(snoringFrequencyHigh)
