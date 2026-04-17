@@ -2,6 +2,7 @@ import SwiftUI
 
 struct DashboardView: View {
     @EnvironmentObject var dataStore: DataStore
+    @EnvironmentObject var scheduleManager: ScheduleManager
     @StateObject private var sessionManager = SessionManager()
 
     var body: some View {
@@ -32,6 +33,11 @@ struct DashboardView: View {
         .sheet(isPresented: $sessionManager.isRecording) {
             SessionView(sessionManager: sessionManager)
                 .interactiveDismissDisabled()
+        }
+        .onChange(of: scheduleManager.shouldAutoStart) { _, shouldStart in
+            guard shouldStart, !sessionManager.isRecording else { return }
+            scheduleManager.shouldAutoStart = false
+            sessionManager.startRecording()
         }
     }
 }

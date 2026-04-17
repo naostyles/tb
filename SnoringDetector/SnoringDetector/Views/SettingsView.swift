@@ -3,10 +3,11 @@ import SwiftUI
 struct SettingsView: View {
     @EnvironmentObject var healthKitManager: HealthKitManager
     @EnvironmentObject var watchConnectivity: WatchConnectivityManager
-    @AppStorage("amplitudeThreshold")   var amplitudeThreshold:   Double = 0.015
+    @EnvironmentObject var scheduleManager: ScheduleManager
+    @AppStorage("amplitudeThreshold")   var amplitudeThreshold:   Double = 0.010
     @AppStorage("snoringFrequencyLow")  var snoringFrequencyLow:  Double = 80
     @AppStorage("snoringFrequencyHigh") var snoringFrequencyHigh: Double = 500
-    @AppStorage("confirmationWindow")   var confirmationWindow:   Double = 0.8
+    @AppStorage("confirmationWindow")   var confirmationWindow:   Double = 0.5
     @AppStorage("notifyOnSnoring")      var notifyOnSnoring:       Bool   = true
 
     var body: some View {
@@ -49,6 +50,32 @@ struct SettingsView: View {
                         title: "Apple Watch",
                         isConnected: watchConnectivity.isWatchReachable
                     ) { EmptyView() }
+                }
+
+                // Auto-schedule
+                Section {
+                    Toggle(isOn: Binding(
+                        get: { scheduleManager.isEnabled },
+                        set: { v in Task { await scheduleManager.setEnabled(v) } }
+                    )) {
+                        Label("自動計測", systemImage: "clock.badge.fill")
+                            .symbolRenderingMode(.hierarchical)
+                    }
+
+                    if scheduleManager.isEnabled {
+                        DatePicker(
+                            "計測開始時刻",
+                            selection: Binding(
+                                get: { scheduleManager.scheduledTime },
+                                set: { scheduleManager.setTime($0) }
+                            ),
+                            displayedComponents: .hourAndMinute
+                        )
+                    }
+                } header: {
+                    Text("スケジュール")
+                } footer: {
+                    Text("指定した時刻に通知が届きます。タップすると計測が自動で開始されます。バックグラウンドからの自動起動はiOSの制限により通知経由となります。")
                 }
 
                 // Detection tuning
@@ -110,17 +137,18 @@ struct SettingsView: View {
 
     private func applySettings() {
         var config = SnoringDetectionEngine.Configuration()
-        config.amplitudeThreshold       = Float(amplitudeThreshold)
-        config.snoringFrequencyLow      = Float(snoringFrequencyLow)
-        config.snoringFrequencyHigh     = Float(snoringFrequencyHigh)
+        config.amplitudeThreshold        = Float(amplitudeThreshold)
+        config.snoringFrequencyLow       = Float(snoringFrequencyLow)
+        config.snoringFrequencyHigh      = Float(snoringFrequencyHigh)
         config.confirmationWindowSeconds = confirmationWindow
         SnoringDetectionEngine.shared.configuration = config
     }
 
     private func sensitivityLabel(_ t: Double) -> String {
         switch t {
-        case 0..<0.015: return "高"
-        case 0.015..<0.030: return "中"
+        case 0..<0.010: return "最高"
+        case 0.010..<0.020: return "高"
+        case 0.020..<0.030: return "中"
         default: return "低"
         }
     }
