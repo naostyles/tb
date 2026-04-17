@@ -13,13 +13,12 @@ class SnoringDetectionEngine: ObservableObject {
     @Published var snoringEvents: [SnoringEvent] = []
 
     struct Configuration {
-        var amplitudeThreshold: Float = 0.015
+        var amplitudeThreshold: Float = 0.010
         var snoringFrequencyLow: Float = 80
         var snoringFrequencyHigh: Float = 500
-        // Fraction of total FFT energy that must fall in the snoring band
-        var snoringEnergyRatio: Float = 0.45
-        var confirmationWindowSeconds: Double = 0.8
-        var silenceWindowSeconds: Double = 1.2
+        var snoringEnergyRatio: Float = 0.35
+        var confirmationWindowSeconds: Double = 0.5
+        var silenceWindowSeconds: Double = 1.0
     }
 
     var configuration = Configuration()

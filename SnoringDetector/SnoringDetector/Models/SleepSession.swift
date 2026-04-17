@@ -62,15 +62,10 @@ struct SleepSession: Identifiable, Codable {
     }
 
     var formattedDuration: String {
-        let hours = Int(duration) / 3600
-        let minutes = (Int(duration) % 3600) / 60
-        return String(format: "%d時間%02d分", hours, minutes)
+        TimeFormat.longDuration(duration)
     }
 
     var formattedDate: String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "ja_JP")
-        formatter.dateFormat = "M月d日(E) HH:mm"
-        return formatter.string(from: startDate)
+        AppDateFormatter.sessionDateTime.string(from: startDate)
     }
 }
