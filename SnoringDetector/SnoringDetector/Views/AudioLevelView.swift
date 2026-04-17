@@ -1,38 +1,36 @@
 import SwiftUI
 
+/// Voice-Memos-style real-time audio waveform.
 struct AudioLevelView: View {
     let level: Float
-    private let barCount = 40
+    private let barCount = 44
 
     var body: some View {
         GeometryReader { geo in
             HStack(spacing: 3) {
-                ForEach(0..<barCount, id: \.self) { index in
-                    let threshold = Float(index) / Float(barCount)
-                    let active = threshold < level
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(barColor(index: index, active: active))
-                        .frame(width: (geo.size.width - CGFloat(barCount - 1) * 3) / CGFloat(barCount))
-                        .frame(height: barHeight(index: index, geo: geo))
-                        .animation(.easeOut(duration: 0.1), value: level)
+                ForEach(0..<barCount, id: \.self) { i in
+                    RoundedRectangle(cornerRadius: 2, style: .continuous)
+                        .fill(.white.opacity(isActive(i) ? 0.85 : 0.18))
+                        .frame(width: max(2, (geo.size.width - CGFloat(barCount - 1) * 3) / CGFloat(barCount)))
+                        .frame(height: barHeight(index: i, totalHeight: geo.size.height))
+                        .animation(.easeOut(duration: 0.08), value: level)
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         }
     }
 
-    private func barHeight(index: Int, geo: GeometryProxy) -> CGFloat {
-        let center = barCount / 2
-        let distance = abs(index - center)
-        let normalizedDist = CGFloat(distance) / CGFloat(center)
-        let baseHeight = geo.size.height * (0.3 + (1 - normalizedDist) * 0.7)
-        let levelBoost = CGFloat(level) * geo.size.height * 0.4
-        return baseHeight + levelBoost * (1 - normalizedDist)
+    private func isActive(_ i: Int) -> Bool {
+        Float(i) / Float(barCount) < level * 1.1
     }
 
-    private func barColor(index: Int, active: Bool) -> Color {
-        guard active else { return Color.white.opacity(0.15) }
-        let t = Double(index) / Double(barCount)
-        return Color(hue: 0.6 - t * 0.3, saturation: 0.8, brightness: 0.9)
+    private func barHeight(index: Int, totalHeight: CGFloat) -> CGFloat {
+        // Natural-looking pseudo-random baseline using sin
+        let base = sin(Double(index) * 0.47 + 1.2) * 0.25 + 0.35
+        let center = barCount / 2
+        let distance = abs(index - center)
+        let spread = 1.0 - Double(distance) / Double(center) * 0.45
+        let boost = Double(level) * Double(totalHeight) * 0.55 * spread
+        return CGFloat(base) * totalHeight * 0.5 + CGFloat(boost)
     }
 }
