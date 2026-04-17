@@ -3,153 +3,152 @@ import SwiftUI
 struct SettingsView: View {
     @EnvironmentObject var healthKitManager: HealthKitManager
     @EnvironmentObject var watchConnectivity: WatchConnectivityManager
-    @AppStorage("amplitudeThreshold") var amplitudeThreshold: Double = 0.015
-    @AppStorage("snoringFrequencyLow") var snoringFrequencyLow: Double = 80
+    @AppStorage("amplitudeThreshold")   var amplitudeThreshold:   Double = 0.015
+    @AppStorage("snoringFrequencyLow")  var snoringFrequencyLow:  Double = 80
     @AppStorage("snoringFrequencyHigh") var snoringFrequencyHigh: Double = 500
-    @AppStorage("confirmationWindow") var confirmationWindow: Double = 0.8
-    @AppStorage("notifyOnSnoring") var notifyOnSnoring: Bool = true
+    @AppStorage("confirmationWindow")   var confirmationWindow:   Double = 0.8
+    @AppStorage("notifyOnSnoring")      var notifyOnSnoring:       Bool   = true
 
     var body: some View {
         NavigationStack {
-            Form {
-                // HealthKit section
-                Section("HealthKit連携") {
-                    HStack {
-                        Label("ヘルスケア", systemImage: "heart.fill")
-                            .foregroundStyle(.red)
-                        Spacer()
-                        if healthKitManager.isAuthorized {
-                            Label("連携済み", systemImage: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
-                                .font(.caption)
-                        } else {
-                            Button("連携する") {
-                                Task {
-                                    try? await healthKitManager.requestAuthorization()
-                                }
-                            }
-                            .font(.caption)
-                        }
-                    }
-                }
-
-                // Apple Watch section
-                Section("Apple Watch") {
-                    HStack {
-                        Label("Apple Watch", systemImage: "applewatch")
-                        Spacer()
-                        if watchConnectivity.isWatchReachable {
-                            Label("接続済み", systemImage: "checkmark.circle.fill")
-                                .foregroundStyle(.green)
-                                .font(.caption)
-                        } else {
-                            Text("未接続")
-                                .foregroundStyle(.secondary)
-                                .font(.caption)
-                        }
-                    }
-                }
-
-                // Detection settings
+            List {
+                // Privacy section
                 Section {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Text("検出感度")
-                            Spacer()
-                            Text(sensitivityLabel(amplitudeThreshold))
-                                .foregroundStyle(.secondary)
+                    HStack(spacing: 14) {
+                        Image(systemName: "lock.shield.fill")
+                            .symbolRenderingMode(.hierarchical)
+                            .foregroundStyle(.indigo)
+                            .font(.title2)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("すべての解析はこの端末内で完結します")
+                                .font(.subheadline.weight(.medium))
+                            Text("録音データや解析結果はサーバーに送信されません。")
                                 .font(.caption)
+                                .foregroundStyle(.secondary)
                         }
-                        Slider(value: $amplitudeThreshold, in: 0.005...0.05, step: 0.005) { _ in
-                            applySettings()
+                    }
+                    .padding(.vertical, 4)
+                }
+
+                // Integrations
+                Section("連携") {
+                    IntegrationRow(
+                        icon: "heart.fill",
+                        iconTint: .red,
+                        title: "ヘルスケア",
+                        isConnected: healthKitManager.isAuthorized
+                    ) {
+                        if !healthKitManager.isAuthorized {
+                            Button("連携する") { Task { try? await healthKitManager.requestAuthorization() } }
                         }
                     }
 
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Text("検出周波数（低）")
-                            Spacer()
-                            Text("\(Int(snoringFrequencyLow)) Hz")
-                                .foregroundStyle(.secondary)
-                                .font(.caption)
-                        }
-                        Slider(value: $snoringFrequencyLow, in: 50...200, step: 10) { _ in
-                            applySettings()
-                        }
-                    }
+                    IntegrationRow(
+                        icon: "applewatch",
+                        iconTint: .primary,
+                        title: "Apple Watch",
+                        isConnected: watchConnectivity.isWatchReachable
+                    ) { EmptyView() }
+                }
 
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Text("検出周波数（高）")
-                            Spacer()
-                            Text("\(Int(snoringFrequencyHigh)) Hz")
-                                .foregroundStyle(.secondary)
-                                .font(.caption)
-                        }
-                        Slider(value: $snoringFrequencyHigh, in: 300...800, step: 50) { _ in
-                            applySettings()
-                        }
-                    }
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Text("確認時間")
-                            Spacer()
-                            Text(String(format: "%.1f秒", confirmationWindow))
-                                .foregroundStyle(.secondary)
-                                .font(.caption)
-                        }
-                        Slider(value: $confirmationWindow, in: 0.3...2.0, step: 0.1) { _ in
-                            applySettings()
-                        }
-                    }
+                // Detection tuning
+                Section {
+                    sliderRow("検出感度", label: sensitivityLabel(amplitudeThreshold),
+                              value: $amplitudeThreshold, in: 0.005...0.05, step: 0.005)
+                    sliderRow("検出周波数（低）", label: "\(Int(snoringFrequencyLow)) Hz",
+                              value: $snoringFrequencyLow, in: 50...200, step: 10)
+                    sliderRow("検出周波数（高）", label: "\(Int(snoringFrequencyHigh)) Hz",
+                              value: $snoringFrequencyHigh, in: 300...800, step: 50)
+                    sliderRow("確認時間", label: String(format: "%.1f 秒", confirmationWindow),
+                              value: $confirmationWindow, in: 0.3...2.0, step: 0.1)
                 } header: {
                     Text("検出設定")
                 } footer: {
-                    Text("感度を上げると小さないびきも検出できますが、誤検出が増える場合があります。")
+                    Text("感度を高くすると小さないびきも検出できますが、誤検出が増える場合があります。")
                 }
 
                 // Notification
                 Section("通知") {
-                    Toggle("いびき検出時に通知", isOn: $notifyOnSnoring)
+                    Toggle(isOn: $notifyOnSnoring) {
+                        Label("いびき検出時に通知", systemImage: "bell.badge.fill")
+                            .symbolRenderingMode(.hierarchical)
+                    }
                 }
 
                 // About
                 Section("このアプリについて") {
-                    HStack {
-                        Text("バージョン")
-                        Spacer()
-                        Text("1.0.0")
-                            .foregroundStyle(.secondary)
-                    }
+                    LabeledContent("バージョン", value: "1.0.0")
                     Link(destination: URL(string: "https://www.apple.com/jp/privacy/")!) {
-                        HStack {
-                            Text("プライバシーポリシー")
-                            Spacer()
-                            Image(systemName: "arrow.up.right.square")
-                                .foregroundStyle(.secondary)
-                        }
+                        Label("プライバシーポリシー", systemImage: "arrow.up.right.square")
+                            .foregroundStyle(.primary)
                     }
                 }
             }
+            .listStyle(.insetGrouped)
             .navigationTitle("設定")
         }
     }
 
-    private func applySettings() {
-        Task { @MainActor in
-            SnoringDetectionEngine.shared.amplitudeThreshold = Float(amplitudeThreshold)
-            SnoringDetectionEngine.shared.snoringFrequencyLow = Float(snoringFrequencyLow)
-            SnoringDetectionEngine.shared.snoringFrequencyHigh = Float(snoringFrequencyHigh)
-            SnoringDetectionEngine.shared.confirmationWindowSeconds = confirmationWindow
+    // MARK: - Helpers
+
+    @ViewBuilder
+    private func sliderRow(
+        _ title: String, label: String,
+        value: Binding<Double>, in range: ClosedRange<Double>, step: Double
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(title).font(.subheadline)
+                Spacer()
+                Text(label).font(.caption).foregroundStyle(.secondary)
+            }
+            Slider(value: value, in: range, step: step) { _ in applySettings() }
+                .tint(.indigo)
         }
+        .padding(.vertical, 2)
     }
 
-    private func sensitivityLabel(_ threshold: Double) -> String {
-        switch threshold {
+    private func applySettings() {
+        var config = SnoringDetectionEngine.Configuration()
+        config.amplitudeThreshold       = Float(amplitudeThreshold)
+        config.snoringFrequencyLow      = Float(snoringFrequencyLow)
+        config.snoringFrequencyHigh     = Float(snoringFrequencyHigh)
+        config.confirmationWindowSeconds = confirmationWindow
+        SnoringDetectionEngine.shared.configuration = config
+    }
+
+    private func sensitivityLabel(_ t: Double) -> String {
+        switch t {
         case 0..<0.015: return "高"
         case 0.015..<0.030: return "中"
         default: return "低"
+        }
+    }
+}
+
+struct IntegrationRow<Action: View>: View {
+    let icon: String
+    let iconTint: Color
+    let title: String
+    let isConnected: Bool
+    @ViewBuilder let action: () -> Action
+
+    var body: some View {
+        HStack {
+            Label(title, systemImage: icon)
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(iconTint)
+            Spacer()
+            if isConnected {
+                Label("接続済み", systemImage: "checkmark.circle.fill")
+                    .labelStyle(.titleAndIcon)
+                    .foregroundStyle(.green)
+                    .font(.caption)
+            } else {
+                action()
+                    .font(.caption)
+                    .foregroundStyle(.indigo)
+            }
         }
     }
 }

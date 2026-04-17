@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 struct SleepSession: Identifiable, Codable {
     let id: UUID
@@ -14,9 +15,7 @@ struct SleepSession: Identifiable, Codable {
     }
 
     var duration: TimeInterval {
-        guard let end = endDate else {
-            return Date().timeIntervalSince(startDate)
-        }
+        guard let end = endDate else { return Date().timeIntervalSince(startDate) }
         return end.timeIntervalSince(startDate)
     }
 
@@ -31,35 +30,34 @@ struct SleepSession: Identifiable, Codable {
 
     var averageIntensity: Double {
         guard !snoringEvents.isEmpty else { return 0 }
-        return snoringEvents.reduce(0) { $0 + $1.intensity } / Double(snoringEvents.count)
+        return snoringEvents.map(\.intensity).reduce(0, +) / Double(snoringEvents.count)
     }
 
     var qualityScore: Int {
-        let percentage = snoringPercentage
-        switch percentage {
-        case 0..<5: return 100
-        case 5..<15: return 80
+        switch snoringPercentage {
+        case 0..<5:   return 100
+        case 5..<15:  return 80
         case 15..<30: return 60
         case 30..<50: return 40
-        default: return 20
+        default:      return 20
         }
     }
 
     var qualityLabel: String {
         switch qualityScore {
         case 80...100: return "良好"
-        case 60..<80: return "普通"
-        case 40..<60: return "やや悪い"
-        default: return "悪い"
+        case 60..<80:  return "普通"
+        case 40..<60:  return "やや悪い"
+        default:       return "悪い"
         }
     }
 
-    var qualityColor: String {
+    var qualityColor: Color {
         switch qualityScore {
-        case 80...100: return "green"
-        case 60..<80: return "yellow"
-        case 40..<60: return "orange"
-        default: return "red"
+        case 80...100: return .green
+        case 60..<80:  return .yellow
+        case 40..<60:  return .orange
+        default:       return .red
         }
     }
 

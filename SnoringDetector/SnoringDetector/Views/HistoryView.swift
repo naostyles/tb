@@ -8,95 +8,105 @@ struct HistoryView: View {
 
     private let periods = [7, 14, 30]
 
+    private var sessions: [SleepSession] {
+        dataStore.sessionsForLastNDays(selectedPeriod)
+    }
+
+    private var grouped: [(key: String, sessions: [SleepSession])] {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ja_JP")
+        formatter.dateFormat = "M月d日(E)"
+        let dict = Dictionary(grouping: sessions) { s in
+            formatter.string(from: s.startDate)
+        }
+        return dict.map { (key: $0.key, sessions: $0.value) }
+            .sorted { a, b in
+                (a.sessions.first?.startDate ?? .distantPast) > (b.sessions.first?.startDate ?? .distantPast)
+            }
+    }
+
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 16) {
-                    // Period picker
-                    Picker("期間", selection: $selectedPeriod) {
-                        ForEach(periods, id: \.self) { p in
-                            Text("過去\(p)日").tag(p)
+            Group {
+                if dataStore.sessions.isEmpty {
+                    EmptyHistoryView()
+                } else {
+                    List {
+                        Section {
+                            SnoringTrendChart(sessions: sessions)
+                                .listRowBackground(Color(.systemGroupedBackground))
+                                .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 8, trailing: 0))
                         }
-                    }
-                    .pickerStyle(.segmented)
-                    .padding(.horizontal)
 
-                    if dataStore.sessions.isEmpty {
-                        EmptyHistoryView()
-                    } else {
-                        // Chart
-                        SnoringChartView(sessions: dataStore.sessionsForLastNDays(selectedPeriod))
-                            .padding(.horizontal)
-
-                        // Session list
-                        VStack(spacing: 12) {
-                            ForEach(dataStore.sessionsForLastNDays(selectedPeriod)) { session in
-                                SessionRowView(session: session)
-                                    .onTapGesture { selectedSession = session }
-                                    .swipeActions(edge: .trailing) {
-                                        Button(role: .destructive) {
-                                            dataStore.delete(session: session)
-                                        } label: {
-                                            Label("削除", systemImage: "trash")
-                                        }
-                                    }
+                        ForEach(grouped, id: \.key) { group in
+                            Section(group.key) {
+                                ForEach(group.sessions) { session in
+                                    SessionRow(session: session)
+                                        .contentShape(Rectangle())
+                                        .onTapGesture { selectedSession = session }
+                                }
+                                .onDelete { indices in
+                                    for i in indices { dataStore.delete(session: group.sessions[i]) }
+                                }
                             }
                         }
-                        .padding(.horizontal)
                     }
+                    .listStyle(.insetGrouped)
                 }
-                .padding(.vertical)
             }
             .navigationTitle("睡眠履歴")
-            .sheet(item: $selectedSession) { session in
-                SessionDetailView(session: session)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Picker("期間", selection: $selectedPeriod) {
+                        ForEach(periods, id: \.self) { p in Text("過去\(p)日").tag(p) }
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 220)
+                }
             }
+            .sheet(item: $selectedSession) { SessionDetailView(session: $0) }
         }
     }
 }
+
+// MARK: - Empty State
 
 struct EmptyHistoryView: View {
     var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "moon.zzz")
-                .font(.system(size: 64))
-                .foregroundStyle(.indigo.opacity(0.4))
-            Text("まだ記録がありません")
-                .font(.headline)
-                .foregroundStyle(.secondary)
-            Text("ダッシュボードから計測を開始しましょう")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .padding(.vertical, 60)
+        ContentUnavailableView(
+            "記録がありません",
+            systemImage: "moon.zzz",
+            description: Text("ダッシュボードから計測を開始しましょう")
+        )
     }
 }
 
-struct SessionRowView: View {
+// MARK: - Session Row
+
+struct SessionRow: View {
     let session: SleepSession
 
     var body: some View {
-        HStack(spacing: 16) {
-            // Quality circle
+        HStack(spacing: 14) {
+            // Score ring
             ZStack {
                 Circle()
-                    .stroke(scoreColor(session.qualityScore).opacity(0.2), lineWidth: 4)
-                    .frame(width: 52, height: 52)
+                    .stroke(session.qualityColor.opacity(0.2), lineWidth: 3.5)
                 Circle()
                     .trim(from: 0, to: CGFloat(session.qualityScore) / 100)
-                    .stroke(scoreColor(session.qualityScore), style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                    .stroke(session.qualityColor, style: StrokeStyle(lineWidth: 3.5, lineCap: .round))
                     .rotationEffect(.degrees(-90))
-                    .frame(width: 52, height: 52)
                 Text("\(session.qualityScore)")
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
-                    .foregroundStyle(scoreColor(session.qualityScore))
+                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .foregroundStyle(session.qualityColor)
             }
+            .frame(width: 44, height: 44)
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(session.formattedDate)
-                    .font(.subheadline.bold())
-                HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(startTimeLabel(session.startDate))
+                    .font(.subheadline.weight(.semibold))
+
+                HStack(spacing: 10) {
                     Label(session.formattedDuration, systemImage: "clock")
                     Label(String(format: "%.0f%%", session.snoringPercentage), systemImage: "waveform")
                 }
@@ -106,22 +116,29 @@ struct SessionRowView: View {
 
             Spacer()
 
-            Image(systemName: "chevron.right")
-                .foregroundStyle(.secondary)
-                .font(.caption)
+            QualityTag(label: session.qualityLabel, color: session.qualityColor)
         }
-        .padding()
-        .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .shadow(color: .black.opacity(0.06), radius: 6, y: 2)
+        .padding(.vertical, 4)
     }
 
-    private func scoreColor(_ score: Int) -> Color {
-        switch score {
-        case 80...100: return .green
-        case 60..<80: return .yellow
-        case 40..<60: return .orange
-        default: return .red
-        }
+    private func startTimeLabel(_ date: Date) -> String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "ja_JP")
+        f.dateFormat = "HH:mm 就寝"
+        return f.string(from: date)
+    }
+}
+
+struct QualityTag: View {
+    let label: String
+    let color: Color
+
+    var body: some View {
+        Text(label)
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(color)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(color.opacity(0.12), in: Capsule())
     }
 }

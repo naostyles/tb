@@ -6,52 +6,44 @@ struct SessionDetailView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 20) {
-                    // Score header
-                    ScoreHeaderView(session: session)
+            List {
+                // Score hero
+                Section {
+                    ScoreHeroView(session: session)
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                }
 
-                    // Key stats grid
-                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
-                        DetailStatCard(
-                            title: "睡眠時間",
-                            value: session.formattedDuration,
-                            icon: "clock.fill",
-                            color: .indigo
-                        )
-                        DetailStatCard(
-                            title: "いびき時間",
-                            value: formatSnoringTime(session.totalSnoringDuration),
-                            icon: "waveform",
-                            color: .orange
-                        )
-                        DetailStatCard(
-                            title: "いびき割合",
-                            value: String(format: "%.1f%%", session.snoringPercentage),
-                            icon: "percent",
-                            color: .purple
-                        )
-                        DetailStatCard(
-                            title: "検出回数",
-                            value: "\(session.snoringEvents.count)回",
-                            icon: "waveform.badge.exclamationmark",
-                            color: .red
-                        )
-                    }
-                    .padding(.horizontal)
+                // Key metrics
+                Section("詳細データ") {
+                    MetricRow(label: "睡眠時間",   value: session.formattedDuration,
+                              icon: "clock.fill",  tint: .indigo)
+                    MetricRow(label: "いびき時間",  value: formatSnoringTime(session.totalSnoringDuration),
+                              icon: "waveform",    tint: .orange)
+                    MetricRow(label: "いびき割合",  value: String(format: "%.1f%%", session.snoringPercentage),
+                              icon: "percent",     tint: .purple)
+                    MetricRow(label: "検出回数",    value: "\(session.snoringEvents.count)回",
+                              icon: "waveform.badge.exclamationmark", tint: .red)
+                    MetricRow(label: "平均強度",    value: String(format: "%.0f%%", session.averageIntensity * 100),
+                              icon: "speaker.wave.2.fill", tint: .pink)
+                }
 
-                    // Timeline
+                // Timeline chart
+                Section("タイムライン") {
                     SessionTimelineChart(session: session)
-                        .padding(.horizontal)
+                        .padding(.vertical, 8)
+                }
 
-                    // Event list
-                    if !session.snoringEvents.isEmpty {
-                        EventListView(events: session.snoringEvents)
-                            .padding(.horizontal)
+                // Event list
+                if !session.snoringEvents.isEmpty {
+                    Section("検出イベント（\(session.snoringEvents.count)件）") {
+                        ForEach(session.snoringEvents) { event in
+                            SnoringEventRow(event: event)
+                        }
                     }
                 }
-                .padding(.vertical)
             }
+            .listStyle(.insetGrouped)
             .navigationTitle(session.formattedDate)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -62,139 +54,114 @@ struct SessionDetailView: View {
         }
     }
 
-    private func formatSnoringTime(_ duration: TimeInterval) -> String {
-        let minutes = Int(duration) / 60
-        let seconds = Int(duration) % 60
-        if minutes > 0 {
-            return "\(minutes)分\(seconds)秒"
-        }
-        return "\(seconds)秒"
+    private func formatSnoringTime(_ d: TimeInterval) -> String {
+        let m = Int(d) / 60, s = Int(d) % 60
+        return m > 0 ? "\(m)分\(s)秒" : "\(s)秒"
     }
 }
 
-struct ScoreHeaderView: View {
+// MARK: - Score Hero
+
+struct ScoreHeroView: View {
     let session: SleepSession
 
     var body: some View {
-        VStack(spacing: 8) {
+        HStack(spacing: 28) {
+            // Circular progress
             ZStack {
                 Circle()
-                    .stroke(scoreColor.opacity(0.2), lineWidth: 12)
-                    .frame(width: 120, height: 120)
+                    .stroke(session.qualityColor.opacity(0.15), lineWidth: 10)
                 Circle()
                     .trim(from: 0, to: CGFloat(session.qualityScore) / 100)
-                    .stroke(scoreColor, style: StrokeStyle(lineWidth: 12, lineCap: .round))
+                    .stroke(session.qualityColor, style: StrokeStyle(lineWidth: 10, lineCap: .round))
                     .rotationEffect(.degrees(-90))
-                    .frame(width: 120, height: 120)
+                    .animation(.spring(duration: 1.0), value: session.qualityScore)
                 VStack(spacing: 0) {
                     Text("\(session.qualityScore)")
-                        .font(.system(size: 40, weight: .bold, design: .rounded))
-                        .foregroundStyle(scoreColor)
+                        .font(.system(size: 42, weight: .bold, design: .rounded))
+                        .foregroundStyle(session.qualityColor)
                     Text("点")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
             }
+            .frame(width: 110, height: 110)
 
-            Text(session.qualityLabel)
-                .font(.title3.bold())
-                .foregroundStyle(scoreColor)
+            VStack(alignment: .leading, spacing: 6) {
+                Text(session.qualityLabel)
+                    .font(.title2.weight(.bold))
+                    .foregroundStyle(session.qualityColor)
+                Text("睡眠スコア")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Text(session.formattedDate)
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
 
-            Text("睡眠スコア")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            Spacer()
         }
-        .padding()
-        .frame(maxWidth: .infinity)
-        .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .shadow(color: .black.opacity(0.06), radius: 6, y: 2)
-        .padding(.horizontal)
-    }
-
-    private var scoreColor: Color {
-        switch session.qualityScore {
-        case 80...100: return .green
-        case 60..<80: return .yellow
-        case 40..<60: return .orange
-        default: return .red
-        }
+        .padding(.vertical, 20)
+        .padding(.horizontal, 24)
+        .background(session.qualityColor.opacity(0.07))
     }
 }
 
-struct DetailStatCard: View {
-    let title: String
+// MARK: - Metric Row
+
+struct MetricRow: View {
+    let label: String
     let value: String
     let icon: String
-    let color: Color
+    let tint: Color
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Image(systemName: icon)
-                    .foregroundStyle(color)
-                Spacer()
-            }
+        LabeledContent {
             Text(value)
-                .font(.title3.bold())
-            Text(title)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                .font(.system(.body, design: .rounded).weight(.semibold))
+        } label: {
+            Label(label, systemImage: icon)
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(tint)
         }
-        .padding()
-        .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .shadow(color: .black.opacity(0.06), radius: 4, y: 2)
     }
 }
 
-struct EventListView: View {
-    let events: [SnoringEvent]
+// MARK: - Snoring Event Row
+
+struct SnoringEventRow: View {
+    let event: SnoringEvent
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("いびきイベント一覧")
-                .font(.headline)
+        HStack {
+            Image(systemName: event.intensityLevel.systemImage)
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(event.intensityLevel.color)
+                .frame(width: 28)
 
-            ForEach(events) { event in
-                HStack {
-                    Image(systemName: event.intensityLevel.systemImage)
-                        .foregroundStyle(Color(event.intensityLevel.color))
-                        .frame(width: 28)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(formatOffset(event.timeOffset))
-                            .font(.subheadline.bold())
-                        Text(event.intensityLevel.rawValue)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    Text(formatDuration(event.duration))
-                        .font(.caption.bold())
-                        .foregroundStyle(.secondary)
-                }
-                .padding(.vertical, 6)
-                if event.id != events.last?.id {
-                    Divider()
-                }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(formatOffset(event.timeOffset))
+                    .font(.subheadline.weight(.medium))
+                Text(event.intensityLevel.rawValue)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
+
+            Spacer()
+
+            Text(formatDuration(event.duration))
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.secondary)
         }
-        .padding()
-        .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .shadow(color: .black.opacity(0.06), radius: 6, y: 2)
     }
 
-    private func formatOffset(_ offset: TimeInterval) -> String {
-        let h = Int(offset) / 3600
-        let m = (Int(offset) % 3600) / 60
-        let s = Int(offset) % 60
-        if h > 0 { return String(format: "%d:%02d:%02d 経過", h, m, s) }
-        return String(format: "%d:%02d 経過", m, s)
+    private func formatOffset(_ t: TimeInterval) -> String {
+        let h = Int(t) / 3600, m = (Int(t) % 3600) / 60, s = Int(t) % 60
+        return h > 0 ? String(format: "%d:%02d:%02d 経過", h, m, s)
+                     : String(format: "%d:%02d 経過", m, s)
     }
 
-    private func formatDuration(_ duration: TimeInterval) -> String {
-        if duration < 60 { return "\(Int(duration))秒" }
-        return "\(Int(duration / 60))分\(Int(duration.truncatingRemainder(dividingBy: 60)))秒"
+    private func formatDuration(_ d: TimeInterval) -> String {
+        d < 60 ? "\(Int(d))秒" : "\(Int(d / 60))分\(Int(d.truncatingRemainder(dividingBy: 60)))秒"
     }
 }
