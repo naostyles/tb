@@ -28,5 +28,6 @@ struct ContentView: View {
                 .tag(Tab.settings)
         }
         .tint(.indigo)
+        .fontDesign(.rounded)
     }
 }
