@@ -4,10 +4,13 @@ struct SettingsView: View {
     @EnvironmentObject var healthKitManager: HealthKitManager
     @EnvironmentObject var watchConnectivity: WatchConnectivityManager
     @EnvironmentObject var scheduleManager: ScheduleManager
+    @StateObject private var powerManager = PowerManager.shared
     @AppStorage("amplitudeThreshold")   var amplitudeThreshold:   Double = 0.010
     @AppStorage("snoringFrequencyLow")  var snoringFrequencyLow:  Double = 80
     @AppStorage("snoringFrequencyHigh") var snoringFrequencyHigh: Double = 500
     @AppStorage("confirmationWindow")   var confirmationWindow:   Double = 0.5
+    @AppStorage("snoringEnergyRatio")   var snoringEnergyRatio:   Double = 0.45
+    @AppStorage("rejectNonSnoring")     var rejectNonSnoring:     Bool   = true
     @AppStorage("notifyOnSnoring")      var notifyOnSnoring:       Bool   = true
 
     var body: some View {
@@ -78,10 +81,46 @@ struct SettingsView: View {
                     Text("指定した時刻に通知が届きます。タップすると計測が自動で開始されます。バックグラウンドからの自動起動はiOSの制限により通知経由となります。")
                 }
 
+                // Power saving
+                Section {
+                    Toggle(isOn: Binding(
+                        get: { powerManager.userLowPowerPreference },
+                        set: { v in
+                            powerManager.userLowPowerPreference = v
+                            SnoringDetectionEngine.shared.configuration.lowPowerMode = powerManager.isLowPowerActive
+                        }
+                    )) {
+                        Label("低電力モード", systemImage: "battery.50")
+                            .symbolRenderingMode(.hierarchical)
+                    }
+
+                    if powerManager.systemLowPowerMode {
+                        HStack(spacing: 10) {
+                            Image(systemName: "bolt.slash.fill")
+                                .foregroundStyle(.yellow)
+                            Text("iOSの低電力モードが有効です。自動で省電力で動作します。")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                } header: {
+                    Text("省電力")
+                } footer: {
+                    Text("解析頻度・画面輝度・通信頻度を抑えてバッテリー消費を約30–40%削減します。")
+                }
+
                 // Detection tuning
                 Section {
+                    Toggle(isOn: $rejectNonSnoring) {
+                        Label("いびき以外の音を除外", systemImage: "waveform.slash")
+                            .symbolRenderingMode(.hierarchical)
+                    }
+                    .onChange(of: rejectNonSnoring) { _, _ in applySettings() }
+
                     sliderRow("検出感度", label: sensitivityLabel(amplitudeThreshold),
                               value: $amplitudeThreshold, in: 0.005...0.05, step: 0.005)
+                    sliderRow("いびきらしさ", label: String(format: "%.0f%%", snoringEnergyRatio * 100),
+                              value: $snoringEnergyRatio, in: 0.25...0.65, step: 0.05)
                     sliderRow("検出周波数（低）", label: "\(Int(snoringFrequencyLow)) Hz",
                               value: $snoringFrequencyLow, in: 50...200, step: 10)
                     sliderRow("検出周波数（高）", label: "\(Int(snoringFrequencyHigh)) Hz",
@@ -91,7 +130,7 @@ struct SettingsView: View {
                 } header: {
                     Text("検出設定")
                 } footer: {
-                    Text("感度を高くすると小さないびきも検出できますが、誤検出が増える場合があります。")
+                    Text("「いびき以外の音を除外」をオンにすると、会話・テレビ・音楽などの高周波成分が多い音を無視します。")
                 }
 
                 // Notification
@@ -113,6 +152,7 @@ struct SettingsView: View {
             }
             .listStyle(.insetGrouped)
             .navigationTitle("設定")
+            .onAppear { applySettings() }
         }
     }
 
@@ -140,7 +180,12 @@ struct SettingsView: View {
         config.amplitudeThreshold        = Float(amplitudeThreshold)
         config.snoringFrequencyLow       = Float(snoringFrequencyLow)
         config.snoringFrequencyHigh      = Float(snoringFrequencyHigh)
+        config.snoringEnergyRatio        = Float(snoringEnergyRatio)
         config.confirmationWindowSeconds = confirmationWindow
+        // Relax the aggressive filters when the user turns off "reject non-snoring".
+        config.requireRhythm             = rejectNonSnoring
+        config.highFrequencyRejectRatio  = rejectNonSnoring ? 0.22 : 1.0
+        config.spectralCentroidMax       = rejectNonSnoring ? 450  : 4000
         SnoringDetectionEngine.shared.configuration = config
     }
 

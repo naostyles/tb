@@ -4,6 +4,7 @@ struct SessionView: View {
     @ObservedObject var sessionManager: SessionManager
     @ObservedObject private var engine = SnoringDetectionEngine.shared
     @ObservedObject private var recorder = AudioRecorder.shared
+    @ObservedObject private var power = PowerManager.shared
     @State private var elapsedTime: TimeInterval = 0
     @State private var timer: Timer?
 
@@ -45,11 +46,22 @@ struct SessionView: View {
                 SnoringStatusView(isSnoring: engine.isSnoringDetected, intensity: engine.currentIntensity)
                     .padding(.bottom, 28)
 
-                // Audio waveform
-                AudioLevelView(level: recorder.audioLevel)
-                    .frame(height: 60)
-                    .padding(.horizontal, 32)
+                // Audio waveform (hidden in low-power mode to skip render work)
+                if !power.isLowPowerActive {
+                    AudioLevelView(level: recorder.audioLevel)
+                        .frame(height: 60)
+                        .padding(.horizontal, 32)
+                        .padding(.bottom, 28)
+                } else {
+                    HStack(spacing: 6) {
+                        Image(systemName: "battery.50")
+                            .foregroundStyle(.yellow)
+                        Text("低電力モードで計測中")
+                            .font(.caption)
+                            .foregroundStyle(.white.opacity(0.7))
+                    }
                     .padding(.bottom, 28)
+                }
 
                 // Stats
                 HStack(spacing: 0) {
@@ -91,8 +103,9 @@ struct SessionView: View {
             }
         }
         .onAppear {
-            timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
-                withAnimation(.linear(duration: 0.1)) { elapsedTime += 1 }
+            let interval: TimeInterval = power.isLowPowerActive ? 5 : 1
+            timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { _ in
+                withAnimation(.linear(duration: 0.1)) { elapsedTime += interval }
             }
         }
         .onDisappear { timer?.invalidate() }
@@ -105,11 +118,12 @@ struct SnoringStatusView: View {
     let isSnoring: Bool
     let intensity: Double
     @State private var animating = false
+    @ObservedObject private var power = PowerManager.shared
 
     var body: some View {
         VStack(spacing: 14) {
             ZStack {
-                if isSnoring {
+                if isSnoring && !power.isLowPowerActive {
                     ForEach(0..<3, id: \.self) { i in
                         Circle()
                             .stroke(.orange.opacity(0.25 - Double(i) * 0.06), lineWidth: 1.5)
