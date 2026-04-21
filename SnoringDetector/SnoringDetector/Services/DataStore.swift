@@ -35,29 +35,31 @@ class DataStore: ObservableObject {
         return session
     }
 
-    func endSession(
-        session: SleepSession,
-        snoringEvents: [SnoringEvent],
-        sleepTalkingEvents: [SleepTalkingEvent] = [],
-        tossEvents: [TossEvent] = [],
-        noiseSamples: [NoiseSample] = [],
-        sleepStages: [SleepStage] = [],
-        apneaEvents: [ApneaEvent] = [],
-        breathflowSamples: [BreathflowSample] = [],
-        positionSamples: [SleepPositionSample] = [],
-        teethGrindingEvents: [TeethGrindingEvent] = []
-    ) {
+    /// Aggregated output of a single recording session.
+    struct SessionResults {
+        var snoringEvents: [SnoringEvent] = []
+        var sleepTalkingEvents: [SleepTalkingEvent] = []
+        var tossEvents: [TossEvent] = []
+        var noiseSamples: [NoiseSample] = []
+        var sleepStages: [SleepStage] = []
+        var apneaEvents: [ApneaEvent] = []
+        var breathflowSamples: [BreathflowSample] = []
+        var positionSamples: [SleepPositionSample] = []
+        var teethGrindingEvents: [TeethGrindingEvent] = []
+    }
+
+    func endSession(_ session: SleepSession, results: SessionResults) {
         var finished = session
-        finished.endDate = Date()
-        finished.snoringEvents      = snoringEvents
-        finished.sleepTalkingEvents = sleepTalkingEvents
-        finished.tossEvents         = tossEvents
-        finished.noiseSamples       = noiseSamples
-        finished.sleepStages        = sleepStages
-        finished.apneaEvents         = apneaEvents
-        finished.breathflowSamples   = breathflowSamples
-        finished.positionSamples     = positionSamples
-        finished.teethGrindingEvents = teethGrindingEvents
+        finished.endDate             = Date()
+        finished.snoringEvents       = results.snoringEvents
+        finished.sleepTalkingEvents  = results.sleepTalkingEvents
+        finished.tossEvents          = results.tossEvents
+        finished.noiseSamples        = results.noiseSamples
+        finished.sleepStages         = results.sleepStages
+        finished.apneaEvents         = results.apneaEvents
+        finished.breathflowSamples   = results.breathflowSamples
+        finished.positionSamples     = results.positionSamples
+        finished.teethGrindingEvents = results.teethGrindingEvents
         sessions.insert(finished, at: 0)
         currentSession = nil
         save()

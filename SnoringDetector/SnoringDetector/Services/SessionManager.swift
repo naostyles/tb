@@ -287,10 +287,10 @@ class SessionManager: ObservableObject {
     private let motionDetector  = MotionDetector.shared
     private let healthKit       = HealthKitManager.shared
     private let stageTracker    = SleepStageTracker()
-    private let apneaTracker      = ApneaTracker()
-    private let positionTracker   = SleepPositionTracker()
-    private var prevSnoringState  = false
-    private var breathflowSamples2: [BreathflowSample] = []
+    private let apneaTracker    = ApneaTracker()
+    private let positionTracker = SleepPositionTracker()
+    private var prevSnoringState = false
+    private var breathflowSamples: [BreathflowSample] = []
     private var breathflowTimer: Timer?
 
     private var currentSession: SleepSession?
@@ -329,7 +329,7 @@ class SessionManager: ObservableObject {
                 apneaTracker.reset()
                 positionTracker.reset()
                 prevSnoringState = false
-                breathflowSamples2.removeAll()
+                breathflowSamples.removeAll()
                 noiseSamples.removeAll()
                 tossesThisMinute = 0; prevTossCount = 0
                 continuousSnoringStart = nil
@@ -373,18 +373,18 @@ class SessionManager: ObservableObject {
             let totalOffset = Date().timeIntervalSince(session.startDate)
             let stages = stageTracker.finalize(endOffset: totalOffset)
             positionTracker.finalize(endOffset: totalOffset)
-            dataStore.endSession(
-                session: session,
-                snoringEvents: detectionEngine.snoringEvents,
-                sleepTalkingEvents: detectionEngine.sleepTalkingEvents,
-                tossEvents: motionDetector.tossEvents,
-                noiseSamples: noiseSamples,
-                sleepStages: stages,
-                apneaEvents: apneaTracker.apneaEvents,
-                breathflowSamples: breathflowSamples2,
-                positionSamples: positionTracker.positionSamples,
+            let results = DataStore.SessionResults(
+                snoringEvents:       detectionEngine.snoringEvents,
+                sleepTalkingEvents:  detectionEngine.sleepTalkingEvents,
+                tossEvents:          motionDetector.tossEvents,
+                noiseSamples:        noiseSamples,
+                sleepStages:         stages,
+                apneaEvents:         apneaTracker.apneaEvents,
+                breathflowSamples:   breathflowSamples,
+                positionSamples:     positionTracker.positionSamples,
                 teethGrindingEvents: detectionEngine.teethGrindingEvents
             )
+            dataStore.endSession(session, results: results)
             if let finished = dataStore.sessions.first {
                 WatchConnectivityManager.shared.sendSessionSummary(session: finished)
             }
@@ -441,7 +441,7 @@ class SessionManager: ObservableObject {
         else if detectionEngine.isSnoringDetected   { state = .snoring }
         else if rms > 0.001                         { state = .breathing }
         else                                        { state = .silence }
-        breathflowSamples2.append(BreathflowSample(timeOffset: offset, rmsLevel: rms, state: state))
+        breathflowSamples.append(BreathflowSample(timeOffset: offset, rmsLevel: rms, state: state))
 
         // Apnea tracking: detect snoring state transitions
         let isSnoring = detectionEngine.isSnoringDetected

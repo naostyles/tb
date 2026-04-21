@@ -57,30 +57,26 @@ enum OralExercise: String, Codable, CaseIterable, Identifiable {
 }
 
 struct ExerciseEntry: Identifiable, Codable {
-    let id: UUID; let exercise: OralExercise; let sets: Int; let completedAt: Date
-    init(id: UUID = UUID(), exercise: OralExercise, sets: Int = 1, completedAt: Date = Date()) {
-        self.id = id; self.exercise = exercise; self.sets = sets; self.completedAt = completedAt
-    }
+    var id: UUID = UUID()
+    var exercise: OralExercise
+    var sets: Int = 1
+    var completedAt: Date = Date()
 }
 
 // MARK: - Lifestyle Log
 
 struct LifestyleLog: Identifiable, Codable {
-    let id: UUID
-    var date: Date           // start of day (Calendar.startOfDay)
-    var alcoholUnits: Double // 0–5+ standard drinks
-    var exerciseMinutes: Int // aerobic exercise
-    var fatigueLevel: Int    // 1–5
-    var weight: Double?      // kg
-    var countermeasures: [Countermeasure]
-    var exercises: [ExerciseEntry]
-    var notes: String
+    var id: UUID = UUID()
+    var date: Date                               // start of day (Calendar.startOfDay)
+    var alcoholUnits: Double = 0                 // 0–5+ standard drinks
+    var exerciseMinutes: Int = 0                 // aerobic exercise
+    var fatigueLevel: Int = 3                    // 1–5
+    var weight: Double?                          // kg
+    var countermeasures: [Countermeasure] = []
+    var exercises: [ExerciseEntry] = []
+    var notes: String = ""
 
-    init(id: UUID = UUID(), date: Date = Date()) {
-        self.id = id
+    init(date: Date = Date()) {
         self.date = Calendar.current.startOfDay(for: date)
-        self.alcoholUnits = 0; self.exerciseMinutes = 0
-        self.fatigueLevel = 3; self.weight = nil
-        self.countermeasures = []; self.exercises = []; self.notes = ""
     }
 }

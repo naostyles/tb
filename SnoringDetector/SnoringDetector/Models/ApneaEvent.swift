@@ -4,27 +4,31 @@ import SwiftUI
 // MARK: - Apnea Event
 
 struct ApneaEvent: Identifiable, Codable {
-    let id: UUID
+    var id: UUID = UUID()
     let timeOffset: TimeInterval   // seconds from session start
     var silenceDuration: TimeInterval
 
-    init(id: UUID = UUID(), timeOffset: TimeInterval, silenceDuration: TimeInterval) {
-        self.id = id; self.timeOffset = timeOffset; self.silenceDuration = silenceDuration
-    }
-
     var severity: Severity {
         switch silenceDuration {
-        case 0..<10: return .mild
+        case 0..<10:  return .mild
         case 10..<20: return .moderate
-        default:     return .severe
+        default:      return .severe
         }
     }
 
     enum Severity: String, Codable {
-        case mild = "軽度", moderate = "中等度", severe = "重度"
+        case mild     = "軽度"
+        case moderate = "中等度"
+        case severe   = "重度"
+
         var color: Color {
-            switch self { case .mild: .yellow; case .moderate: .orange; case .severe: .red }
+            switch self {
+            case .mild:     .yellow
+            case .moderate: .orange
+            case .severe:   .red
+            }
         }
+
         var icon: String {
             switch self {
             case .mild:     "lungs"
@@ -38,17 +42,14 @@ struct ApneaEvent: Identifiable, Codable {
 // MARK: - Breathflow Sample (per-second breathing state)
 
 struct BreathflowSample: Identifiable, Codable {
-    let id: UUID
+    var id: UUID = UUID()
     let timeOffset: TimeInterval
     let rmsLevel: Double
     let state: BreathState
 
-    init(id: UUID = UUID(), timeOffset: TimeInterval, rmsLevel: Double, state: BreathState) {
-        self.id = id; self.timeOffset = timeOffset; self.rmsLevel = rmsLevel; self.state = state
-    }
-
     enum BreathState: String, Codable {
         case snoring, breathing, silence, grindingTeeth
+
         var color: Color {
             switch self {
             case .snoring:       .orange
@@ -91,24 +92,20 @@ enum SleepPosition: String, Codable, CaseIterable {
 }
 
 struct SleepPositionSample: Identifiable, Codable {
-    let id: UUID
+    var id: UUID = UUID()
     let timeOffset: TimeInterval
     var position: SleepPosition
-    var duration: TimeInterval
-
-    init(id: UUID = UUID(), timeOffset: TimeInterval, position: SleepPosition, duration: TimeInterval = 0) {
-        self.id = id; self.timeOffset = timeOffset; self.position = position; self.duration = duration
-    }
+    var duration: TimeInterval = 0
 }
 
 // MARK: - Teeth Grinding Event
 
 struct TeethGrindingEvent: Identifiable, Codable {
-    let id: UUID; let startTime: Date; var endTime: Date?
-    var timeOffset: TimeInterval; var intensity: Double
+    var id: UUID = UUID()
+    var startTime: Date = Date()
+    var endTime: Date?
+    var timeOffset: TimeInterval = 0
+    var intensity: Double = 0.5
 
-    init(id: UUID = UUID(), startTime: Date = Date(), timeOffset: TimeInterval = 0, intensity: Double = 0.5) {
-        self.id = id; self.startTime = startTime; self.timeOffset = timeOffset; self.intensity = intensity
-    }
     var duration: TimeInterval { endTime.map { $0.timeIntervalSince(startTime) } ?? 0 }
 }

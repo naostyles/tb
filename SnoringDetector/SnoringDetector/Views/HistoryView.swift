@@ -6,16 +6,19 @@ struct HistoryView: View {
     @State private var selectedPeriod = 7
     @State private var selectedMode: Mode = .history
     @State private var selectedSession: SleepSession?
-    @State private var csvExportURL: URL?
-    @State private var showingCSVExport = false
+    @State private var shareItem: ShareItem?
     @State private var showingLifestyleLog = false
     @State private var lifestyleLogDate = Date()
-    @State private var pdfExportURL: URL?
-    @State private var showingPDFExport = false
 
     private let periods = [7, 14, 30]
 
     enum Mode: String, CaseIterable { case history = "履歴", analysis = "分析", factor = "要因" }
+
+    /// Identifiable wrapper so `.sheet(item:)` can present any exported file URL.
+    struct ShareItem: Identifiable {
+        let id = UUID()
+        let url: URL
+    }
 
     private var sessions: [SleepSession] {
         dataStore.sessionsForLastNDays(selectedPeriod)
@@ -88,12 +91,7 @@ struct HistoryView: View {
                 }
             }
             .sheet(item: $selectedSession) { SessionDetailView(session: $0).environmentObject(dataStore) }
-            .sheet(isPresented: $showingCSVExport) {
-                if let url = csvExportURL { CSVShareSheet(url: url) }
-            }
-            .sheet(isPresented: $showingPDFExport) {
-                if let url = pdfExportURL { CSVShareSheet(url: url) }
-            }
+            .sheet(item: $shareItem) { ShareSheet(url: $0.url) }
             .sheet(isPresented: $showingLifestyleLog) {
                 LifestyleLogView(date: lifestyleLogDate, existing: dataStore.log(for: lifestyleLogDate))
                     .environmentObject(dataStore)
@@ -103,20 +101,31 @@ struct HistoryView: View {
 
     private func exportCSV() {
         let csv = dataStore.exportCSV(sessions: sessions)
-        let name = "sleep_data_\(Int(Date().timeIntervalSince1970)).csv"
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent(name)
-        try? csv.write(to: url, atomically: true, encoding: .utf8)
-        csvExportURL = url
-        showingCSVExport = true
+        shareItem = writeToTemp(contents: .csv(csv), prefix: "sleep_data", ext: "csv")
     }
 
     private func exportPDF() {
         let data = PDFReportGenerator.generate(sessions: sessions, days: selectedPeriod)
-        let name = "sleep_report_\(Int(Date().timeIntervalSince1970)).pdf"
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent(name)
-        try? data.write(to: url)
-        pdfExportURL = url
-        showingPDFExport = true
+        shareItem = writeToTemp(contents: .pdf(data), prefix: "sleep_report", ext: "pdf")
+    }
+
+    private enum ExportContent {
+        case csv(String)
+        case pdf(Data)
+    }
+
+    private func writeToTemp(contents: ExportContent, prefix: String, ext: String) -> ShareItem? {
+        let name = "\(prefix)_\(Int(Date().timeIntervalSince1970)).\(ext)"
+        let url  = FileManager.default.temporaryDirectory.appendingPathComponent(name)
+        do {
+            switch contents {
+            case .csv(let text): try text.write(to: url, atomically: true, encoding: .utf8)
+            case .pdf(let data): try data.write(to: url)
+            }
+            return ShareItem(url: url)
+        } catch {
+            return nil
+        }
     }
 
     private var historyList: some View {
@@ -600,11 +609,12 @@ struct InsightsCard: View {
     }
 }
 
-// MARK: - CSV Share Sheet
+// MARK: - Share Sheet
 
 import UIKit
 
-struct CSVShareSheet: UIViewControllerRepresentable {
+/// Wraps `UIActivityViewController` for exporting CSV/PDF/any file URL.
+struct ShareSheet: UIViewControllerRepresentable {
     let url: URL
     func makeUIViewController(context: Context) -> UIActivityViewController {
         UIActivityViewController(activityItems: [url], applicationActivities: nil)
