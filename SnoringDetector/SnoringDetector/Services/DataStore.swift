@@ -32,12 +32,33 @@ class DataStore: ObservableObject {
         return session
     }
 
-    func endSession(session: SleepSession, events: [SnoringEvent]) {
+    func endSession(
+        session: SleepSession,
+        snoringEvents: [SnoringEvent],
+        sleepTalkingEvents: [SleepTalkingEvent] = [],
+        tossEvents: [TossEvent] = []
+    ) {
         var finished = session
         finished.endDate = Date()
-        finished.snoringEvents = events
+        finished.snoringEvents = snoringEvents
+        finished.sleepTalkingEvents = sleepTalkingEvents
+        finished.tossEvents = tossEvents
         sessions.insert(finished, at: 0)
         currentSession = nil
+        save()
+        // Fetch Watch vitals from HealthKit for the completed session
+        Task { await attachVitals(to: finished.id) }
+    }
+
+    /// Queries HealthKit for HR, SpO2, and respiratory-rate samples
+    /// recorded during the session and persists them.
+    func attachVitals(to sessionID: UUID) async {
+        guard let idx = sessions.firstIndex(where: { $0.id == sessionID }) else { return }
+        let session = sessions[idx]
+        guard let end = session.endDate else { return }
+        let samples = await HealthKitManager.shared.fetchVitals(start: session.startDate, end: end)
+        guard !samples.isEmpty else { return }
+        sessions[idx].vitalSamples = samples
         save()
     }
 

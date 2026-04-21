@@ -2,32 +2,31 @@ import SwiftUI
 
 struct SessionView: View {
     @ObservedObject var sessionManager: SessionManager
-    @ObservedObject private var engine = SnoringDetectionEngine.shared
+    @ObservedObject private var engine  = SnoringDetectionEngine.shared
     @ObservedObject private var recorder = AudioRecorder.shared
-    @ObservedObject private var power = PowerManager.shared
+    @ObservedObject private var power   = PowerManager.shared
+    @ObservedObject private var motion  = MotionDetector.shared
+    @ObservedObject private var health  = HealthKitManager.shared
     @State private var elapsedTime: TimeInterval = 0
     @State private var timer: Timer?
 
     var body: some View {
         ZStack {
-            // Background: deep indigo fading to near-black
             LinearGradient(
                 stops: [
                     .init(color: Color(hue: 0.69, saturation: 0.55, brightness: 0.18), location: 0),
                     .init(color: Color(hue: 0.69, saturation: 0.6, brightness: 0.06), location: 1)
                 ],
-                startPoint: .top,
-                endPoint: .bottom
+                startPoint: .top, endPoint: .bottom
             )
             .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // Drag indicator
                 Capsule()
                     .fill(.white.opacity(0.25))
                     .frame(width: 36, height: 5)
                     .padding(.top, 12)
-                    .padding(.bottom, 28)
+                    .padding(.bottom, 20)
 
                 // Elapsed time
                 VStack(spacing: 4) {
@@ -36,51 +35,66 @@ struct SessionView: View {
                         .foregroundStyle(.white.opacity(0.5))
                         .tracking(1)
                     Text(TimeFormat.clock(elapsedTime))
-                        .font(.system(size: 60, weight: .thin, design: .monospaced))
+                        .font(.system(size: 56, weight: .thin, design: .monospaced))
                         .foregroundStyle(.white)
                         .contentTransition(.numericText())
                 }
-                .padding(.bottom, 36)
+                .padding(.bottom, 24)
 
-                // Status ring + icon
-                SnoringStatusView(isSnoring: engine.isSnoringDetected, intensity: engine.currentIntensity)
-                    .padding(.bottom, 28)
+                // Status ring: snoring / sleep talking / quiet
+                SnoringStatusView(
+                    isSnoring: engine.isSnoringDetected,
+                    isTalking: engine.isSleepTalkingDetected,
+                    intensity: engine.currentIntensity
+                )
+                .padding(.bottom, 20)
 
-                // Audio waveform (hidden in low-power mode to skip render work)
+                // Waveform or low-power badge
                 if !power.isLowPowerActive {
                     AudioLevelView(level: recorder.audioLevel)
-                        .frame(height: 60)
+                        .frame(height: 50)
                         .padding(.horizontal, 32)
-                        .padding(.bottom, 28)
+                        .padding(.bottom, 20)
                 } else {
                     HStack(spacing: 6) {
-                        Image(systemName: "battery.50")
-                            .foregroundStyle(.yellow)
+                        Image(systemName: "battery.50").foregroundStyle(.yellow)
                         Text("低電力モードで計測中")
                             .font(.caption)
                             .foregroundStyle(.white.opacity(0.7))
                     }
-                    .padding(.bottom, 28)
+                    .padding(.bottom, 20)
                 }
 
-                // Stats
+                // Stats row
                 HStack(spacing: 0) {
                     SessionStatItem(
                         value: "\(engine.snoringEvents.count)",
-                        label: "検出回数",
+                        label: "いびき",
                         icon: "waveform.badge.exclamationmark"
                     )
-                    Divider()
-                        .frame(height: 36)
-                        .background(.white.opacity(0.2))
+                    Divider().frame(height: 36).background(.white.opacity(0.2))
                     SessionStatItem(
-                        value: String(format: "%.0f%%", engine.currentIntensity * 100),
-                        label: "現在の強度",
-                        icon: "speaker.wave.3"
+                        value: "\(engine.sleepTalkingEvents.count)",
+                        label: "寝言",
+                        icon: "text.bubble.fill"
                     )
+                    Divider().frame(height: 36).background(.white.opacity(0.2))
+                    SessionStatItem(
+                        value: "\(motion.tossEvents.count)",
+                        label: "寝返り",
+                        icon: "figure.roll"
+                    )
+                    if let hr = health.currentHeartRate {
+                        Divider().frame(height: 36).background(.white.opacity(0.2))
+                        SessionStatItem(
+                            value: "\(Int(hr))",
+                            label: "心拍",
+                            icon: "heart.fill"
+                        )
+                    }
                 }
-                .padding(.horizontal, 40)
-                .padding(.bottom, 40)
+                .padding(.horizontal, 24)
+                .padding(.bottom, 32)
 
                 Spacer()
 
@@ -109,24 +123,35 @@ struct SessionView: View {
             }
         }
         .onDisappear { timer?.invalidate() }
+        // Tap anywhere to temporarily restore brightness during auto-dim
+        .simultaneousGesture(
+            TapGesture().onEnded { _ in power.temporarilyRestoreBrightness() }
+        )
     }
 }
 
-// MARK: - Snoring Status
+// MARK: - Status Ring
 
 struct SnoringStatusView: View {
     let isSnoring: Bool
+    let isTalking: Bool
     let intensity: Double
     @State private var animating = false
     @ObservedObject private var power = PowerManager.shared
 
+    private var activeState: (color: Color, icon: String, label: String)? {
+        if isSnoring  { return (.orange, "waveform.badge.exclamationmark", "いびきを検出中") }
+        if isTalking  { return (.cyan,   "text.bubble.fill",               "寝言を検出中") }
+        return nil
+    }
+
     var body: some View {
         VStack(spacing: 14) {
             ZStack {
-                if isSnoring && !power.isLowPowerActive {
+                if let state = activeState, !power.isLowPowerActive {
                     ForEach(0..<3, id: \.self) { i in
                         Circle()
-                            .stroke(.orange.opacity(0.25 - Double(i) * 0.06), lineWidth: 1.5)
+                            .stroke(state.color.opacity(0.25 - Double(i) * 0.06), lineWidth: 1.5)
                             .frame(width: 96 + CGFloat(i) * 32, height: 96 + CGFloat(i) * 32)
                             .scaleEffect(animating ? 1.35 : 1)
                             .opacity(animating ? 0 : 1)
@@ -138,21 +163,21 @@ struct SnoringStatusView: View {
                 }
 
                 Circle()
-                    .fill(isSnoring ? .orange.opacity(0.22) : .white.opacity(0.08))
+                    .fill((activeState?.color ?? .white).opacity(activeState != nil ? 0.22 : 0.08))
                     .frame(width: 96, height: 96)
 
-                Image(systemName: isSnoring ? "waveform.badge.exclamationmark" : "moon.zzz.fill")
+                Image(systemName: activeState?.icon ?? "moon.zzz.fill")
                     .font(.system(size: 36, weight: .light))
                     .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(isSnoring ? .orange : .white.opacity(0.6))
+                    .foregroundStyle(activeState?.color ?? .white.opacity(0.6))
                     .contentTransition(.symbolEffect(.replace))
             }
-            .frame(height: 200)
-            .animation(.spring(duration: 0.5), value: isSnoring)
+            .frame(height: 180)
+            .animation(.spring(duration: 0.5), value: isSnoring || isTalking)
 
-            Text(isSnoring ? "いびきを検出中" : "静かに眠っています")
+            Text(activeState?.label ?? "静かに眠っています")
                 .font(.headline)
-                .foregroundStyle(isSnoring ? .orange : .white.opacity(0.65))
+                .foregroundStyle(activeState?.color ?? .white.opacity(0.65))
 
             if isSnoring {
                 ProgressView(value: intensity)
@@ -161,8 +186,8 @@ struct SnoringStatusView: View {
                     .animation(.easeOut(duration: 0.2), value: intensity)
             }
         }
-        .onChange(of: isSnoring) { _, v in animating = v }
-        .onAppear { animating = isSnoring }
+        .onChange(of: isSnoring || isTalking) { _, v in animating = v }
+        .onAppear { animating = isSnoring || isTalking }
     }
 }
 

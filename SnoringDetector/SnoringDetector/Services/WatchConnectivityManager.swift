@@ -3,15 +3,21 @@ import Combine
 
 // Keys shared between iPhone and Watch targets
 enum WatchMessageKey {
-    static let isRecording    = "isRecording"
+    static let isRecording     = "isRecording"
     static let snoringDetected = "snoringDetected"
-    static let intensity      = "intensity"
-    static let command        = "command"
-    static let type           = "type"
-    static let duration       = "duration"
-    static let snoringPct     = "snoringPercentage"
-    static let qualityScore   = "qualityScore"
-    static let eventCount     = "eventCount"
+    static let talkingDetected = "talkingDetected"
+    static let intensity       = "intensity"
+    static let heartRate       = "heartRate"
+    static let tossCount       = "tossCount"
+    static let command         = "command"
+    static let type            = "type"
+    static let duration        = "duration"
+    static let snoringPct      = "snoringPercentage"
+    static let qualityScore    = "qualityScore"
+    static let eventCount      = "eventCount"
+    static let talkingCount    = "talkingCount"
+    static let avgHeartRate    = "avgHeartRate"
+    static let avgOxygen       = "avgOxygen"
 
     static let typeSessionSummary = "sessionSummary"
 }
@@ -37,22 +43,33 @@ class WatchConnectivityManager: NSObject, ObservableObject {
 
     func sendSessionStatus(isRecording: Bool, snoringDetected: Bool, intensity: Double) {
         guard WCSession.default.isReachable else { return }
-        WCSession.default.sendMessage([
+        var msg: [String: Any] = [
             WatchMessageKey.isRecording:     isRecording,
             WatchMessageKey.snoringDetected: snoringDetected,
-            WatchMessageKey.intensity:       intensity
-        ], replyHandler: nil)
+            WatchMessageKey.talkingDetected: SnoringDetectionEngine.shared.isSleepTalkingDetected,
+            WatchMessageKey.intensity:       intensity,
+            WatchMessageKey.tossCount:       MotionDetector.shared.tossEvents.count
+        ]
+        if let hr = HealthKitManager.shared.currentHeartRate {
+            msg[WatchMessageKey.heartRate] = Int(hr)
+        }
+        WCSession.default.sendMessage(msg, replyHandler: nil)
     }
 
     func sendSessionSummary(session: SleepSession) {
         guard WCSession.default.activationState == .activated else { return }
-        try? WCSession.default.updateApplicationContext([
+        var ctx: [String: Any] = [
             WatchMessageKey.type:         WatchMessageKey.typeSessionSummary,
             WatchMessageKey.duration:     session.duration,
             WatchMessageKey.snoringPct:   session.snoringPercentage,
             WatchMessageKey.qualityScore: session.qualityScore,
-            WatchMessageKey.eventCount:   session.snoringEvents.count
-        ])
+            WatchMessageKey.eventCount:   session.snoringEvents.count,
+            WatchMessageKey.talkingCount: session.sleepTalkingEvents.count,
+            WatchMessageKey.tossCount:    session.tossEvents.count
+        ]
+        if let hr  = session.averageHeartRate  { ctx[WatchMessageKey.avgHeartRate] = hr }
+        if let spo2 = session.averageOxygen    { ctx[WatchMessageKey.avgOxygen]    = spo2 }
+        try? WCSession.default.updateApplicationContext(ctx)
     }
 }
 

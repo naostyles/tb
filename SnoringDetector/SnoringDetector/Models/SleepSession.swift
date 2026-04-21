@@ -56,13 +56,35 @@ struct SleepSession: Identifiable, Codable {
     var startDate: Date
     var endDate: Date?
     var snoringEvents: [SnoringEvent]
+    var sleepTalkingEvents: [SleepTalkingEvent]
+    var tossEvents: [TossEvent]
+    var vitalSamples: [VitalSample]
     var audioFileURL: URL?
 
     init(id: UUID = UUID(), startDate: Date = Date()) {
         self.id = id
         self.startDate = startDate
         self.snoringEvents = []
+        self.sleepTalkingEvents = []
+        self.tossEvents = []
+        self.vitalSamples = []
     }
+
+    // Forward-compatible decoder: new fields default to empty arrays so
+    // sessions saved by older builds continue to decode correctly.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id           = try c.decode(UUID.self, forKey: .id)
+        startDate    = try c.decode(Date.self, forKey: .startDate)
+        endDate      = try c.decodeIfPresent(Date.self, forKey: .endDate)
+        snoringEvents      = try c.decodeIfPresent([SnoringEvent].self,       forKey: .snoringEvents)      ?? []
+        sleepTalkingEvents = try c.decodeIfPresent([SleepTalkingEvent].self,  forKey: .sleepTalkingEvents) ?? []
+        tossEvents         = try c.decodeIfPresent([TossEvent].self,          forKey: .tossEvents)         ?? []
+        vitalSamples       = try c.decodeIfPresent([VitalSample].self,        forKey: .vitalSamples)       ?? []
+        audioFileURL = try c.decodeIfPresent(URL.self, forKey: .audioFileURL)
+    }
+
+    // MARK: - Computed
 
     var duration: TimeInterval {
         guard let end = endDate else { return Date().timeIntervalSince(startDate) }
@@ -83,14 +105,50 @@ struct SleepSession: Identifiable, Codable {
         return snoringEvents.map(\.intensity).reduce(0, +) / Double(snoringEvents.count)
     }
 
+    var heartRateSamples:  [VitalSample] { vitalSamples.filter { $0.type == .heartRate } }
+    var oxygenSamples:     [VitalSample] { vitalSamples.filter { $0.type == .oxygenSaturation } }
+    var respiratorySamples:[VitalSample] { vitalSamples.filter { $0.type == .respiratoryRate } }
+
+    var averageHeartRate: Double? {
+        let s = heartRateSamples
+        guard !s.isEmpty else { return nil }
+        return s.map(\.value).reduce(0, +) / Double(s.count)
+    }
+
+    var averageOxygen: Double? {
+        let s = oxygenSamples
+        guard !s.isEmpty else { return nil }
+        return s.map(\.value).reduce(0, +) / Double(s.count)
+    }
+
     var qualityScore: Int {
+        var score = 100.0
+
+        // Snoring penalty
         switch snoringPercentage {
-        case 0..<5:   return 100
-        case 5..<15:  return 80
-        case 15..<30: return 60
-        case 30..<50: return 40
-        default:      return 20
+        case 0..<5:   break
+        case 5..<15:  score -= 15
+        case 15..<30: score -= 30
+        case 30..<50: score -= 50
+        default:      score -= 70
         }
+
+        // Sleep talking penalty (minor)
+        let talkingMinutes = sleepTalkingEvents.map(\.duration).reduce(0, +) / 60
+        score -= min(10, talkingMinutes * 0.5)
+
+        // Toss/turn penalty (frequent movement = restless sleep)
+        let tossesPerHour = duration > 0 ? Double(tossEvents.count) / (duration / 3600) : 0
+        if tossesPerHour > 20 { score -= 15 }
+        else if tossesPerHour > 10 { score -= 7 }
+
+        // SpO2 penalty (low oxygen saturation)
+        if let spo2 = averageOxygen {
+            if spo2 < 90 { score -= 25 }
+            else if spo2 < 94 { score -= 12 }
+        }
+
+        return max(10, Int(score.rounded()))
     }
 
     var qualityLabel: String {

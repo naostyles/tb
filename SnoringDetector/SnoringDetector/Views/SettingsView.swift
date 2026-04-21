@@ -5,13 +5,15 @@ struct SettingsView: View {
     @EnvironmentObject var watchConnectivity: WatchConnectivityManager
     @EnvironmentObject var scheduleManager: ScheduleManager
     @StateObject private var powerManager = PowerManager.shared
-    @AppStorage("amplitudeThreshold")   var amplitudeThreshold:   Double = 0.006
-    @AppStorage("snoringFrequencyLow")  var snoringFrequencyLow:  Double = 50
-    @AppStorage("snoringFrequencyHigh") var snoringFrequencyHigh: Double = 500
-    @AppStorage("confirmationWindow")   var confirmationWindow:   Double = 0.5
-    @AppStorage("snoringEnergyRatio")   var snoringEnergyRatio:   Double = 0.28
-    @AppStorage("rejectNonSnoring")     var rejectNonSnoring:     Bool   = true
-    @AppStorage("notifyOnSnoring")      var notifyOnSnoring:       Bool   = true
+    @AppStorage("amplitudeThreshold")    var amplitudeThreshold:    Double = 0.006
+    @AppStorage("snoringFrequencyLow")   var snoringFrequencyLow:   Double = 50
+    @AppStorage("snoringFrequencyHigh")  var snoringFrequencyHigh:  Double = 500
+    @AppStorage("confirmationWindow")    var confirmationWindow:    Double = 0.5
+    @AppStorage("snoringEnergyRatio")    var snoringEnergyRatio:    Double = 0.28
+    @AppStorage("rejectNonSnoring")      var rejectNonSnoring:      Bool   = true
+    @AppStorage("detectSleepTalking")    var detectSleepTalking:    Bool   = true
+    @AppStorage("motionSensitivity")     var motionSensitivity:     Double = 0.5
+    @AppStorage("notifyOnSnoring")       var notifyOnSnoring:       Bool   = true
 
     var body: some View {
         NavigationStack {
@@ -43,7 +45,7 @@ struct SettingsView: View {
                         isConnected: healthKitManager.isAuthorized
                     ) {
                         if !healthKitManager.isAuthorized {
-                            Button("連携する") { Task { try? await healthKitManager.requestAuthorization() } }
+                            Button("連携する") { Task { try? await HealthKitManager.shared.requestAuthorization() } }
                         }
                     }
 
@@ -79,6 +81,61 @@ struct SettingsView: View {
                     Text("スケジュール")
                 } footer: {
                     Text("指定した時刻に通知が届きます。タップすると計測が自動で開始されます。バックグラウンドからの自動起動はiOSの制限により通知経由となります。")
+                }
+
+                // Sleep monitoring features
+                Section {
+                    Toggle(isOn: $detectSleepTalking) {
+                        Label("寝言の検出", systemImage: "text.bubble.fill")
+                            .symbolRenderingMode(.hierarchical)
+                    }
+                    .onChange(of: detectSleepTalking) { _, _ in applySettings() }
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Label("寝返り感度", systemImage: "figure.roll")
+                                .symbolRenderingMode(.hierarchical)
+                                .font(.subheadline)
+                            Spacer()
+                            Text(motionSensitivityLabel(motionSensitivity))
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                        Slider(value: $motionSensitivity, in: 0.2...1.2, step: 0.1) { _ in
+                            MotionDetector.shared.motionSensitivity = motionSensitivity
+                        }
+                        .tint(.mint)
+                    }
+                    .padding(.vertical, 2)
+                } header: {
+                    Text("睡眠計測")
+                } footer: {
+                    Text("寝言はマイクから音声解析、寝返りは加速度センサーで検出します。端末をベッドの近くに置いてください。")
+                }
+
+                // Screen
+                Section {
+                    Toggle(isOn: $powerManager.screenAutoDimEnabled) {
+                        Label("画面の自動消灯", systemImage: "moon.fill")
+                            .symbolRenderingMode(.hierarchical)
+                    }
+                    if powerManager.screenAutoDimEnabled {
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack {
+                                Text("消灯までの時間")
+                                    .font(.subheadline)
+                                Spacer()
+                                Text(dimDelayLabel(powerManager.screenDimDelaySeconds))
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
+                            Slider(value: $powerManager.screenDimDelaySeconds, in: 15...300, step: 15)
+                                .tint(.indigo)
+                        }
+                        .padding(.vertical, 2)
+                    }
+                } header: {
+                    Text("画面")
+                } footer: {
+                    Text("計測開始から指定時間後に画面をほぼ消灯し、バッテリーを節約します。タップで一時的に明るくなります。")
                 }
 
                 // Power saving
@@ -183,7 +240,23 @@ struct SettingsView: View {
         config.snoringEnergyRatio        = Float(snoringEnergyRatio)
         config.confirmationWindowSeconds = confirmationWindow
         config.rejectNonSnoring          = rejectNonSnoring
+        config.detectSleepTalking        = detectSleepTalking
         SnoringDetectionEngine.shared.configuration = config
+        MotionDetector.shared.motionSensitivity = motionSensitivity
+    }
+
+    private func motionSensitivityLabel(_ v: Double) -> String {
+        switch v {
+        case 0..<0.35: return "最高"
+        case 0.35..<0.6: return "高"
+        case 0.6..<0.9: return "中"
+        default: return "低"
+        }
+    }
+
+    private func dimDelayLabel(_ seconds: Double) -> String {
+        let s = Int(seconds)
+        return s < 60 ? "\(s)秒" : "\(s / 60)分"
     }
 
     private func sensitivityLabel(_ t: Double) -> String {
