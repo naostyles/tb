@@ -6,6 +6,8 @@ struct HistoryView: View {
     @State private var selectedPeriod = 7
     @State private var selectedMode: Mode = .history
     @State private var selectedSession: SleepSession?
+    @State private var csvExportURL: URL?
+    @State private var showingCSVExport = false
 
     private let periods = [7, 14, 30]
 
@@ -59,8 +61,29 @@ struct HistoryView: View {
                     .frame(width: 220)
                 }
             }
-            .sheet(item: $selectedSession) { SessionDetailView(session: $0) }
+            .sheet(item: $selectedSession) { SessionDetailView(session: $0).environmentObject(dataStore) }
+            .sheet(isPresented: $showingCSVExport) {
+                if let url = csvExportURL { CSVShareSheet(url: url) }
+            }
+            .toolbar {
+                if selectedMode == .history && !dataStore.sessions.isEmpty {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button { exportCSV() } label: {
+                            Image(systemName: "square.and.arrow.up")
+                        }
+                    }
+                }
+            }
         }
+    }
+
+    private func exportCSV() {
+        let csv = dataStore.exportCSV(sessions: sessions)
+        let name = "sleep_data_\(Int(Date().timeIntervalSince1970)).csv"
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(name)
+        try? csv.write(to: url, atomically: true, encoding: .utf8)
+        csvExportURL = url
+        showingCSVExport = true
     }
 
     private var historyList: some View {
@@ -522,6 +545,18 @@ struct InsightsCard: View {
         if minutes < 60 { return "少しばらつきがあります（±\(Int(minutes))分）" }
         return "就寝時刻が不規則です（±\(Int(minutes))分）。睡眠リズムを整えましょう"
     }
+}
+
+// MARK: - CSV Share Sheet
+
+import UIKit
+
+struct CSVShareSheet: UIViewControllerRepresentable {
+    let url: URL
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: [url], applicationActivities: nil)
+    }
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
 struct InsightRow: View {

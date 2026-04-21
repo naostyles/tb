@@ -36,17 +36,20 @@ class DataStore: ObservableObject {
         session: SleepSession,
         snoringEvents: [SnoringEvent],
         sleepTalkingEvents: [SleepTalkingEvent] = [],
-        tossEvents: [TossEvent] = []
+        tossEvents: [TossEvent] = [],
+        noiseSamples: [NoiseSample] = [],
+        sleepStages: [SleepStage] = []
     ) {
         var finished = session
         finished.endDate = Date()
-        finished.snoringEvents = snoringEvents
+        finished.snoringEvents      = snoringEvents
         finished.sleepTalkingEvents = sleepTalkingEvents
-        finished.tossEvents = tossEvents
+        finished.tossEvents         = tossEvents
+        finished.noiseSamples       = noiseSamples
+        finished.sleepStages        = sleepStages
         sessions.insert(finished, at: 0)
         currentSession = nil
         save()
-        // Fetch Watch vitals from HealthKit for the completed session
         Task { await attachVitals(to: finished.id) }
     }
 
@@ -60,6 +63,39 @@ class DataStore: ObservableObject {
         guard !samples.isEmpty else { return }
         sessions[idx].vitalSamples = samples
         save()
+    }
+
+    // MARK: - CSV Export
+
+    func exportCSV(sessions: [SleepSession]? = nil) -> String {
+        let rows = (sessions ?? self.sessions)
+        var csv = "日付,就寝時刻,起床時刻,睡眠時間(分),いびき割合(%),いびき回数,いびき時間(分),寝言回数,寝返り回数,平均心拍数(bpm),平均血中酸素(%),深い眠り(分),浅い眠り(分),REM(分),スコア\n"
+        let fmt = DateFormatter()
+        fmt.locale = Locale(identifier: "ja_JP")
+        fmt.dateFormat = "yyyy/MM/dd"
+        let timeFmt = DateFormatter()
+        timeFmt.locale = Locale(identifier: "ja_JP")
+        timeFmt.dateFormat = "HH:mm"
+
+        for s in rows {
+            let date   = fmt.string(from: s.startDate)
+            let bed    = timeFmt.string(from: s.startDate)
+            let wake   = s.endDate.map { timeFmt.string(from: $0) } ?? "-"
+            let dur    = String(format: "%.0f", s.duration / 60)
+            let snorePct = String(format: "%.1f", s.snoringPercentage)
+            let snoreCnt = "\(s.snoringEvents.count)"
+            let snoreDur = String(format: "%.0f", s.totalSnoringDuration / 60)
+            let talkCnt = "\(s.sleepTalkingEvents.count)"
+            let tossCnt = "\(s.tossEvents.count)"
+            let hr   = s.averageHeartRate.map { String(format: "%.0f", $0) } ?? ""
+            let spo2 = s.averageOxygen.map    { String(format: "%.1f", $0 * 100) } ?? ""
+            let deep  = String(format: "%.0f", s.deepSleepDuration / 60)
+            let light = String(format: "%.0f", s.lightSleepDuration / 60)
+            let rem   = String(format: "%.0f", s.remSleepDuration / 60)
+            let score = "\(s.qualityScore)"
+            csv += "\(date),\(bed),\(wake),\(dur),\(snorePct),\(snoreCnt),\(snoreDur),\(talkCnt),\(tossCnt),\(hr),\(spo2),\(deep),\(light),\(rem),\(score)\n"
+        }
+        return csv
     }
 
     func delete(session: SleepSession) {

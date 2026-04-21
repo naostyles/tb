@@ -61,8 +61,26 @@ struct SessionDetailView: View {
                     VitalsSection(session: liveSession)
                 }
 
+                // Sleep stage timeline
+                if !liveSession.sleepStages.isEmpty {
+                    Section("睡眠ステージ") {
+                        SleepStageTimeline(
+                            stages: liveSession.sleepStages,
+                            totalDuration: liveSession.duration
+                        )
+                        .padding(.vertical, 8)
+                    }
+                }
+
+                // Ambient noise chart
+                if !liveSession.noiseSamples.isEmpty {
+                    Section("環境ノイズ") {
+                        NoiseLevelChart(samples: liveSession.noiseSamples)
+                    }
+                }
+
                 // Timeline chart
-                Section("タイムライン") {
+                Section("いびきタイムライン") {
                     SessionTimelineChart(session: liveSession)
                         .padding(.vertical, 8)
                 }
@@ -416,6 +434,122 @@ struct MetricRow: View {
                 .symbolRenderingMode(.hierarchical)
                 .foregroundStyle(tint)
         }
+    }
+}
+
+// MARK: - Sleep Stage Timeline
+
+struct SleepStageTimeline: View {
+    let stages: [SleepStage]
+    let totalDuration: TimeInterval
+
+    private var deep:  TimeInterval { stages.filter { $0.stage == .deep  }.map(\.duration).reduce(0, +) }
+    private var light: TimeInterval { stages.filter { $0.stage == .light }.map(\.duration).reduce(0, +) }
+    private var rem:   TimeInterval { stages.filter { $0.stage == .rem   }.map(\.duration).reduce(0, +) }
+    private var present: Set<SleepStage.Stage> { Set(stages.map(\.stage)) }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if totalDuration > 0 {
+                GeometryReader { geo in
+                    HStack(spacing: 1) {
+                        ForEach(stages) { stage in
+                            if stage.duration > 0 {
+                                Rectangle()
+                                    .fill(stage.stage.color)
+                                    .frame(width: max(2, geo.size.width * CGFloat(stage.duration / totalDuration)))
+                            }
+                        }
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+                }
+                .frame(height: 28)
+            }
+
+            HStack(spacing: 12) {
+                ForEach(SleepStage.Stage.allCases, id: \.self) { s in
+                    if present.contains(s) {
+                        HStack(spacing: 4) {
+                            Circle().fill(s.color).frame(width: 8, height: 8)
+                            Text(s.rawValue)
+                        }
+                    }
+                }
+            }
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+
+            if deep + light + rem > 0 {
+                HStack(spacing: 20) {
+                    if deep  > 0 { StageDurationLabel(stage: .deep,  duration: deep)  }
+                    if light > 0 { StageDurationLabel(stage: .light, duration: light) }
+                    if rem   > 0 { StageDurationLabel(stage: .rem,   duration: rem)   }
+                }
+            }
+        }
+    }
+}
+
+struct StageDurationLabel: View {
+    let stage: SleepStage.Stage
+    let duration: TimeInterval
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(stage.rawValue)
+                .font(.caption2)
+                .foregroundStyle(stage.color)
+            Text(TimeFormat.shortDuration(duration))
+                .font(.caption2.weight(.medium))
+        }
+    }
+}
+
+// MARK: - Noise Level Chart
+
+struct NoiseLevelChart: View {
+    let samples: [NoiseSample]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("環境ノイズの推移（1分毎）")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            Chart {
+                ForEach(samples) { s in
+                    AreaMark(x: .value("時刻", s.date), y: .value("レベル", s.rmsLevel))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [.teal.opacity(0.5), .teal.opacity(0.05)],
+                                startPoint: .top, endPoint: .bottom
+                            )
+                        )
+                        .interpolationMethod(.catmullRom)
+                    LineMark(x: .value("時刻", s.date), y: .value("レベル", s.rmsLevel))
+                        .foregroundStyle(.teal)
+                        .interpolationMethod(.catmullRom)
+                        .lineStyle(StrokeStyle(lineWidth: 1.5))
+                }
+            }
+            .chartXAxis {
+                AxisMarks(values: .stride(by: .hour)) { _ in
+                    AxisValueLabel(format: .dateTime.hour(.defaultDigits(amPM: .omitted)).minute())
+                        .font(.caption2).foregroundStyle(.secondary)
+                }
+            }
+            .chartYAxis {
+                AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { v in
+                    AxisGridLine().foregroundStyle(.secondary.opacity(0.2))
+                    AxisValueLabel {
+                        if let d = v.as(Double.self) {
+                            Text(String(format: "%.2f", d)).font(.caption2)
+                        }
+                    }
+                }
+            }
+            .frame(height: 100)
+        }
+        .padding(.vertical, 4)
     }
 }
 

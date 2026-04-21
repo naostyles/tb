@@ -14,6 +14,8 @@ struct SettingsView: View {
     @AppStorage("detectSleepTalking")    var detectSleepTalking:    Bool   = true
     @AppStorage("motionSensitivity")     var motionSensitivity:     Double = 0.5
     @AppStorage("notifyOnSnoring")       var notifyOnSnoring:       Bool   = true
+    @AppStorage("snoringAlertEnabled")   var snoringAlertEnabled:   Bool   = true
+    @AppStorage("snoringAlertMinutes")   var snoringAlertMinutes:   Double = 3.0
 
     var body: some View {
         NavigationStack {
@@ -81,6 +83,60 @@ struct SettingsView: View {
                     Text("スケジュール")
                 } footer: {
                     Text("指定した時刻に通知が届きます。タップすると計測が自動で開始されます。バックグラウンドからの自動起動はiOSの制限により通知経由となります。")
+                }
+
+                // Smart alarm
+                Section {
+                    Toggle(isOn: Binding(
+                        get: { scheduleManager.smartAlarmEnabled },
+                        set: { v in
+                            scheduleManager.setSmartAlarm(
+                                enabled: v,
+                                wakeTime: scheduleManager.smartAlarmWakeTime,
+                                windowMinutes: scheduleManager.smartAlarmWindowMinutes
+                            )
+                        }
+                    )) {
+                        Label("スマートアラーム", systemImage: "alarm.fill")
+                            .symbolRenderingMode(.hierarchical)
+                    }
+
+                    if scheduleManager.smartAlarmEnabled {
+                        DatePicker(
+                            "起床目標時刻",
+                            selection: Binding(
+                                get: { scheduleManager.smartAlarmWakeTime },
+                                set: { t in
+                                    scheduleManager.setSmartAlarm(
+                                        enabled: true,
+                                        wakeTime: t,
+                                        windowMinutes: scheduleManager.smartAlarmWindowMinutes
+                                    )
+                                }
+                            ),
+                            displayedComponents: .hourAndMinute
+                        )
+
+                        sliderRow(
+                            "起床ウィンドウ",
+                            label: "\(scheduleManager.smartAlarmWindowMinutes)分前から",
+                            value: Binding(
+                                get: { Double(scheduleManager.smartAlarmWindowMinutes) },
+                                set: { v in
+                                    scheduleManager.setSmartAlarm(
+                                        enabled: true,
+                                        wakeTime: scheduleManager.smartAlarmWakeTime,
+                                        windowMinutes: Int(v)
+                                    )
+                                }
+                            ),
+                            in: 10...60, step: 5
+                        )
+                    }
+                } header: {
+                    Text("スマートアラーム")
+                } footer: {
+                    Text("起床目標時刻の前に浅い眠りを検出すると、最適なタイミングで起こします。バックアップとして目標時刻にも通知が届きます。")
                 }
 
                 // Sleep monitoring features
@@ -191,11 +247,29 @@ struct SettingsView: View {
                 }
 
                 // Notification
-                Section("通知") {
+                Section {
                     Toggle(isOn: $notifyOnSnoring) {
                         Label("いびき検出時に通知", systemImage: "bell.badge.fill")
                             .symbolRenderingMode(.hierarchical)
                     }
+
+                    Toggle(isOn: $snoringAlertEnabled) {
+                        Label("いびき持続通知", systemImage: "bell.badge.waveform.fill")
+                            .symbolRenderingMode(.hierarchical)
+                    }
+
+                    if snoringAlertEnabled {
+                        sliderRow(
+                            "通知するまでの時間",
+                            label: "\(Int(snoringAlertMinutes))分間続いたら",
+                            value: $snoringAlertMinutes,
+                            in: 1...15, step: 1
+                        )
+                    }
+                } header: {
+                    Text("通知")
+                } footer: {
+                    Text("「いびき持続通知」は指定時間以上連続でいびきが続いた際に通知します。")
                 }
 
                 // About

@@ -59,6 +59,8 @@ struct SleepSession: Identifiable, Codable {
     var sleepTalkingEvents: [SleepTalkingEvent]
     var tossEvents: [TossEvent]
     var vitalSamples: [VitalSample]
+    var noiseSamples: [NoiseSample]
+    var sleepStages: [SleepStage]
     var audioFileURL: URL?
 
     init(id: UUID = UUID(), startDate: Date = Date()) {
@@ -68,20 +70,23 @@ struct SleepSession: Identifiable, Codable {
         self.sleepTalkingEvents = []
         self.tossEvents = []
         self.vitalSamples = []
+        self.noiseSamples = []
+        self.sleepStages = []
     }
 
-    // Forward-compatible decoder: new fields default to empty arrays so
-    // sessions saved by older builds continue to decode correctly.
+    // Forward-compatible decoder
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        id           = try c.decode(UUID.self, forKey: .id)
-        startDate    = try c.decode(Date.self, forKey: .startDate)
-        endDate      = try c.decodeIfPresent(Date.self, forKey: .endDate)
-        snoringEvents      = try c.decodeIfPresent([SnoringEvent].self,       forKey: .snoringEvents)      ?? []
-        sleepTalkingEvents = try c.decodeIfPresent([SleepTalkingEvent].self,  forKey: .sleepTalkingEvents) ?? []
-        tossEvents         = try c.decodeIfPresent([TossEvent].self,          forKey: .tossEvents)         ?? []
-        vitalSamples       = try c.decodeIfPresent([VitalSample].self,        forKey: .vitalSamples)       ?? []
-        audioFileURL = try c.decodeIfPresent(URL.self, forKey: .audioFileURL)
+        id                 = try c.decode(UUID.self, forKey: .id)
+        startDate          = try c.decode(Date.self, forKey: .startDate)
+        endDate            = try c.decodeIfPresent(Date.self, forKey: .endDate)
+        snoringEvents      = try c.decodeIfPresent([SnoringEvent].self,      forKey: .snoringEvents)      ?? []
+        sleepTalkingEvents = try c.decodeIfPresent([SleepTalkingEvent].self, forKey: .sleepTalkingEvents) ?? []
+        tossEvents         = try c.decodeIfPresent([TossEvent].self,         forKey: .tossEvents)         ?? []
+        vitalSamples       = try c.decodeIfPresent([VitalSample].self,       forKey: .vitalSamples)       ?? []
+        noiseSamples       = try c.decodeIfPresent([NoiseSample].self,       forKey: .noiseSamples)       ?? []
+        sleepStages        = try c.decodeIfPresent([SleepStage].self,        forKey: .sleepStages)        ?? []
+        audioFileURL       = try c.decodeIfPresent(URL.self, forKey: .audioFileURL)
     }
 
     // MARK: - Computed
@@ -119,6 +124,20 @@ struct SleepSession: Identifiable, Codable {
         let s = oxygenSamples
         guard !s.isEmpty else { return nil }
         return s.map(\.value).reduce(0, +) / Double(s.count)
+    }
+
+    var deepSleepDuration: TimeInterval {
+        sleepStages.filter { $0.stage == .deep }.map(\.duration).reduce(0, +)
+    }
+    var remSleepDuration: TimeInterval {
+        sleepStages.filter { $0.stage == .rem }.map(\.duration).reduce(0, +)
+    }
+    var lightSleepDuration: TimeInterval {
+        sleepStages.filter { $0.stage == .light }.map(\.duration).reduce(0, +)
+    }
+    var averageNoiseLevel: Double {
+        guard !noiseSamples.isEmpty else { return 0 }
+        return noiseSamples.map(\.rmsLevel).reduce(0, +) / Double(noiseSamples.count)
     }
 
     var qualityScore: Int {
