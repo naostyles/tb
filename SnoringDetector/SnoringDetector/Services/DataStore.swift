@@ -10,7 +10,20 @@ class DataStore: ObservableObject {
     private let sessionsKey = "saved_sessions"
 
     private init() {
+        migrateDetectionSettings()
         load()
+    }
+
+    /// Reset detection settings that were too strict in a previous build.
+    private func migrateDetectionSettings() {
+        let migrationKey = "detectionSettingsMigratedV3"
+        guard !UserDefaults.standard.bool(forKey: migrationKey) else { return }
+        UserDefaults.standard.set(0.28,   forKey: "snoringEnergyRatio")
+        UserDefaults.standard.set(50.0,   forKey: "snoringFrequencyLow")
+        UserDefaults.standard.set(500.0,  forKey: "snoringFrequencyHigh")
+        UserDefaults.standard.set(0.006,  forKey: "amplitudeThreshold")
+        UserDefaults.standard.set(true,   forKey: "rejectNonSnoring")
+        UserDefaults.standard.set(true,   forKey: migrationKey)
     }
 
     func startSession() -> SleepSession {

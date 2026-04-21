@@ -2,10 +2,12 @@ import AVFoundation
 import Accelerate
 import Combine
 
-/// Detects snoring in real-time from audio buffers using FFT-based frequency analysis.
-/// Snoring occupies 80–500 Hz with low spectral centroid, weak high-frequency energy,
-/// and a rhythmic 2–5 second periodicity. Non-snoring sounds (speech, TV, music,
-/// alarms, wind) are rejected via spectral shape and rhythmicity tests.
+/// Detects snoring from audio buffers using FFT + harmonic structure analysis.
+///
+/// The primary indicator is harmonic structure: snoring produces a quasi-periodic
+/// sound whose energy peaks at a fundamental frequency (50–300 Hz) with at least
+/// two visible harmonics. This distinguishes snoring from broadband noise, wind,
+/// alerts, and speech (which has strong formant energy above 800 Hz).
 @MainActor
 class SnoringDetectionEngine: ObservableObject {
     static let shared = SnoringDetectionEngine()
@@ -15,17 +17,17 @@ class SnoringDetectionEngine: ObservableObject {
     @Published var snoringEvents: [SnoringEvent] = []
 
     struct Configuration {
-        var amplitudeThreshold: Float = 0.010
-        var snoringFrequencyLow: Float = 80
-        var snoringFrequencyHigh: Float = 500
-        var snoringEnergyRatio: Float = 0.45          // stricter than before (was 0.35)
-        var highFrequencyRejectHz: Float = 1000       // energy above this must stay low
-        var highFrequencyRejectRatio: Float = 0.22    // reject if > this fraction above cutoff
-        var spectralCentroidMax: Float = 450          // snoring centroid is low
+        var amplitudeThreshold: Float = 0.006      // RMS threshold; lower catches quieter snoring
+        var snoringFrequencyLow: Float = 50        // fundamental range — some snorers go below 80 Hz
+        var snoringFrequencyHigh: Float = 500      // top of snoring fundamental + 1st harmonics
+        var snoringEnergyRatio: Float = 0.28       // 50–500 Hz must hold ≥28% of total energy
+        var highFrequencyRejectHz: Float = 1500    // above this = speech/music territory
+        var highFrequencyRejectRatio: Float = 0.35 // reject if >35% energy above 1500 Hz
+        var spectralCentroidMax: Float = 650       // snoring centroid stays low even with harmonics
         var confirmationWindowSeconds: Double = 0.5
-        var silenceWindowSeconds: Double = 1.0
-        var requireRhythm: Bool = true                // require 2–5 s breathing cycle
-        var lowPowerMode: Bool = false                // halve FFT workload when true
+        var silenceWindowSeconds: Double = 1.5
+        var rejectNonSnoring: Bool = true          // enable harmonic + spectral shape checks
+        var lowPowerMode: Bool = false
     }
 
     var configuration = Configuration()
@@ -35,10 +37,9 @@ class SnoringDetectionEngine: ObservableObject {
     private var snoringStartTime: Date?
     private var lastDetectionTime: Date?
     private var currentEvent: SnoringEvent?
-    private var recentEventStarts: [Date] = []       // rolling history for rhythm check
-    private var bufferCounter: UInt = 0              // for buffer-skip in low-power mode
+    private var bufferCounter: UInt = 0
 
-    // Persistent FFT setup — avoids per-buffer create/destroy.
+    // Persistent FFT setup — avoids per-buffer allocation.
     private var fftSetup: FFTSetup?
     private var fftLog2n: vDSP_Length = 0
 
@@ -52,10 +53,8 @@ class SnoringDetectionEngine: ObservableObject {
 
     func process(buffer: AVAudioPCMBuffer, sessionStartTime: Date) {
         guard let data = buffer.floatChannelData?[0] else { return }
-        let frameCount = Int(buffer.frameLength)
-        guard frameCount >= fftSize else { return }
+        guard Int(buffer.frameLength) >= fftSize else { return }
 
-        // In low-power mode, analyze every 2nd buffer to halve CPU cost.
         bufferCounter &+= 1
         if configuration.lowPowerMode && bufferCounter % 2 != 0 { return }
 
@@ -67,7 +66,7 @@ class SnoringDetectionEngine: ObservableObject {
             return
         }
 
-        guard isSnoringLike(samples: samples) else {
+        guard passesSpectralChecks(samples: samples) else {
             handleSilence(sessionStartTime: sessionStartTime)
             return
         }
@@ -79,27 +78,11 @@ class SnoringDetectionEngine: ObservableObject {
         let elapsed = now.timeIntervalSince(snoringStartTime!)
         guard elapsed >= configuration.confirmationWindowSeconds else { return }
 
-        let normalizedIntensity = Double(rms * 3).clamped(to: 0...1)
+        let normalizedIntensity = Double(rms * 4).clamped(to: 0...1)
         if !isSnoringDetected {
-            // Rhythm check: accept only if previous event occurred 1.5–6 s ago,
-            // matching the natural breathing cycle. First event is always allowed.
-            if configuration.requireRhythm,
-               let last = recentEventStarts.last {
-                let gap = now.timeIntervalSince(last)
-                if gap < 1.2 || gap > 8.0 {
-                    // Pattern doesn't match breathing rhythm — treat as noise.
-                    // Still remember the candidate so a repeating pattern can settle in.
-                    recentEventStarts.append(now)
-                    trimRhythmHistory(now: now)
-                    snoringStartTime = nil
-                    return
-                }
-            }
             isSnoringDetected = true
             let offset = now.timeIntervalSince(sessionStartTime)
             currentEvent = SnoringEvent(startTime: now, intensity: normalizedIntensity, timeOffset: offset)
-            recentEventStarts.append(now)
-            trimRhythmHistory(now: now)
         }
         currentIntensity = normalizedIntensity
         currentEvent?.intensity = normalizedIntensity
@@ -112,7 +95,6 @@ class SnoringDetectionEngine: ObservableObject {
         snoringStartTime = nil
         lastDetectionTime = nil
         currentEvent = nil
-        recentEventStarts.removeAll()
         bufferCounter = 0
     }
 
@@ -136,50 +118,92 @@ class SnoringDetectionEngine: ObservableObject {
         currentIntensity = 0
     }
 
-    private func trimRhythmHistory(now: Date) {
-        recentEventStarts = recentEventStarts.filter { now.timeIntervalSince($0) < 30 }
-    }
-
-    /// Multi-feature spectral test to isolate snoring from other sounds.
-    private func isSnoringLike(samples: [Float]) -> Bool {
+    /// Two-stage check:
+    /// 1) Band energy ratio — ensures energy is concentrated in the snoring range.
+    /// 2) If `rejectNonSnoring` is enabled, run harmonic structure and spectral shape
+    ///    tests to reject speech, music, alarms, and broadband noise.
+    private func passesSpectralChecks(samples: [Float]) -> Bool {
         var windowed = applyHannWindow(samples: samples)
         let spectrum = performFFT(samples: &windowed)
+        guard !spectrum.isEmpty else { return false }
 
         let binWidth = Float(sampleRate) / Float(fftSize)
-        let nyquistBin = spectrum.count
-
-        let lowBin  = min(Int(configuration.snoringFrequencyLow  / binWidth), nyquistBin)
-        let highBin = min(Int(configuration.snoringFrequencyHigh / binWidth), nyquistBin)
-        let rejectBin = min(Int(configuration.highFrequencyRejectHz / binWidth), nyquistBin)
-
+        let n = spectrum.count
         let totalEnergy = spectrum.reduce(0, +)
         guard totalEnergy > 0 else { return false }
 
-        // 1) Sufficient energy in snoring band.
-        let snoringEnergy = spectrum[lowBin..<highBin].reduce(0, +)
-        guard (snoringEnergy / totalEnergy) >= configuration.snoringEnergyRatio else { return false }
+        // Stage 1: basic band energy gate
+        let lowBin  = min(Int(configuration.snoringFrequencyLow  / binWidth), n - 1)
+        let highBin = min(Int(configuration.snoringFrequencyHigh / binWidth), n - 1)
+        let bandEnergy = spectrum[lowBin..<highBin].reduce(0, +)
+        guard (bandEnergy / totalEnergy) >= configuration.snoringEnergyRatio else { return false }
 
-        // 2) Reject sounds with strong high-frequency content (speech, music, TV, alarms).
-        if rejectBin < nyquistBin {
-            let highEnergy = spectrum[rejectBin..<nyquistBin].reduce(0, +)
-            if (highEnergy / totalEnergy) > configuration.highFrequencyRejectRatio { return false }
+        // Stage 2 (optional): harmonic structure + spectral shape
+        guard configuration.rejectNonSnoring else { return true }
+
+        // 2a) Harmonic structure — the fingerprint of periodic, tonal sounds.
+        guard hasHarmonicStructure(spectrum: spectrum, binWidth: binWidth) else { return false }
+
+        // 2b) High-frequency dominance check. Speech/music push a lot of energy above
+        //     1500 Hz (formants, overtones). Snoring doesn't.
+        let rejectBin = min(Int(configuration.highFrequencyRejectHz / binWidth), n - 1)
+        if rejectBin < n {
+            let hiEnergy = spectrum[rejectBin..<n].reduce(0, +)
+            if (hiEnergy / totalEnergy) > configuration.highFrequencyRejectRatio { return false }
         }
 
-        // 3) Spectral centroid must be low — snoring is a rumble, not a whistle.
+        // 2c) Spectral centroid. Snoring energy is concentrated in the low hundreds of Hz.
         let centroid = spectralCentroid(spectrum: spectrum, binWidth: binWidth)
         guard centroid <= configuration.spectralCentroidMax else { return false }
 
         return true
     }
 
-    private func spectralCentroid(spectrum: [Float], binWidth: Float) -> Float {
-        var weightedSum: Float = 0
-        var magnitudeSum: Float = 0
-        for (i, m) in spectrum.enumerated() {
-            weightedSum += Float(i) * binWidth * m
-            magnitudeSum += m
+    /// Looks for a clear fundamental in 50–300 Hz and checks that at least 2 of the
+    /// next 4 harmonics (2×, 3×, 4×, 5× fundamental) are present at ≥10% of peak energy.
+    ///
+    /// This is the most discriminating single test: snoring is quasi-periodic so it
+    /// always shows harmonic structure, whereas noise, wind, and single-tone alarms do not.
+    private func hasHarmonicStructure(spectrum: [Float], binWidth: Float) -> Bool {
+        let fundLow  = max(1, Int(50  / binWidth))
+        let fundHigh = min(Int(300 / binWidth), spectrum.count - 1)
+        guard fundHigh > fundLow else { return false }
+
+        // Find the dominant peak in the fundamental range.
+        var peakMag: Float = 0
+        var peakBin = fundLow
+        for i in fundLow...fundHigh {
+            if spectrum[i] > peakMag { peakMag = spectrum[i]; peakBin = i }
         }
-        return magnitudeSum > 0 ? weightedSum / magnitudeSum : 0
+        guard peakMag > 0 else { return false }
+
+        // Sanity: peak must stand above the local average (not just noise).
+        let avgInRange = spectrum[fundLow...fundHigh].reduce(0, +) / Float(fundHigh - fundLow + 1)
+        guard peakMag > avgInRange * 2.5 else { return false }
+
+        let fundFreq = Float(peakBin) * binWidth
+        let minHarmonicMag = peakMag * 0.08  // harmonic must be ≥8% of fundamental
+
+        var harmonicsFound = 0
+        for h in 2...5 {
+            let hBin = Int(fundFreq * Float(h) / binWidth)
+            let lo = max(0, hBin - 3)
+            let hi = min(hBin + 3, spectrum.count - 1)
+            guard lo <= hi else { continue }
+            let localPeak = (lo...hi).map { spectrum[$0] }.max() ?? 0
+            if localPeak >= minHarmonicMag { harmonicsFound += 1 }
+        }
+        return harmonicsFound >= 2
+    }
+
+    private func spectralCentroid(spectrum: [Float], binWidth: Float) -> Float {
+        var weighted: Float = 0
+        var total: Float = 0
+        for (i, m) in spectrum.enumerated() {
+            weighted += Float(i) * binWidth * m
+            total += m
+        }
+        return total > 0 ? weighted / total : 0
     }
 
     private func applyHannWindow(samples: [Float]) -> [Float] {
@@ -203,8 +227,8 @@ class SnoringDetectionEngine: ObservableObject {
 
         let n = samples.count
         let halfN = n / 2
-        var realPart  = [Float](repeating: 0, count: halfN)
-        var imagPart  = [Float](repeating: 0, count: halfN)
+        var realPart   = [Float](repeating: 0, count: halfN)
+        var imagPart   = [Float](repeating: 0, count: halfN)
         var magnitudes = [Float](repeating: 0, count: halfN)
 
         samples.withUnsafeMutableBufferPointer { ptr in
