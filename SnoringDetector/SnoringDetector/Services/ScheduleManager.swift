@@ -120,7 +120,7 @@ final class ScheduleManager: ObservableObject {
             var comps = DateComponents()
             comps.weekday = 2; comps.hour = 8; comps.minute = 0
             let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: true)
-            center.add(UNNotificationRequest(identifier: weeklyReportID, content: content, trigger: trigger))
+            try? await center.add(UNNotificationRequest(identifier: weeklyReportID, content: content, trigger: trigger))
         }
     }
 
