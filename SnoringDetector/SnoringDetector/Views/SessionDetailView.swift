@@ -207,11 +207,11 @@ struct VitalsSection: View {
             if !session.oxygenSamples.isEmpty {
                 OxygenChartRow(samples: session.oxygenSamples)
             }
-            if let avg = session.respiratorySamples.map(\.value).reduce(0, +) as Double?,
-               !session.respiratorySamples.isEmpty {
+            if !session.respiratorySamples.isEmpty {
+                let avg = session.respiratorySamples.map(\.value).reduce(0, +) / Double(session.respiratorySamples.count)
                 MetricRow(
                     label: "平均呼吸数",
-                    value: String(format: "%.0f 回/分", avg / Double(session.respiratorySamples.count)),
+                    value: String(format: "%.0f 回/分", avg),
                     icon: "wind", tint: .teal
                 )
             }
