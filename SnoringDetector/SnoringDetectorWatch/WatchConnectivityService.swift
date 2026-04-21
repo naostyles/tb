@@ -10,6 +10,7 @@ private enum MessageKey {
     static let command         = "command"
     static let type            = "type"
     static let typeSessionSummary = "sessionSummary"
+    static let hapticTrigger   = "hapticTrigger"
 }
 
 private enum Command {
@@ -55,8 +56,15 @@ extension WatchConnectivityService: WCSessionDelegate {
 
     func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
         WatchDataModel.shared.update(from: message)
-        if message[MessageKey.snoringDetected] as? Bool == true {
-            WKInterfaceDevice.current().play(.notification)
+
+        // Haptic for snoring alert intervention (gentle directional haptic to prompt position change)
+        if message[MessageKey.hapticTrigger] as? Bool == true {
+            WKInterfaceDevice.current().play(.directionUp)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                WKInterfaceDevice.current().play(.directionUp)
+            }
+        } else if message[MessageKey.snoringDetected] as? Bool == true {
+            WKInterfaceDevice.current().play(.click)
         }
     }
 

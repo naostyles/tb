@@ -272,6 +272,22 @@ struct SettingsView: View {
                     Text("「いびき持続通知」は指定時間以上連続でいびきが続いた際に通知します。")
                 }
 
+                // Watch haptic intervention
+                Section {
+                    Toggle(isOn: Binding(
+                        get: { watchConnectivity.isWatchReachable && UserDefaults.standard.bool(forKey: "watchHapticEnabled") },
+                        set: { v in UserDefaults.standard.set(v, forKey: "watchHapticEnabled") }
+                    )) {
+                        Label("いびき検知で Apple Watch を振動", systemImage: "applewatch.radiowaves.left.and.right")
+                            .symbolRenderingMode(.hierarchical)
+                    }
+                    .disabled(!watchConnectivity.isWatchReachable)
+                } header: {
+                    Text("スマート介入")
+                } footer: {
+                    Text("いびきを検知すると Apple Watch が微弱な振動を発し、覚醒させずに寝返りを促します。Watch のペアリングが必要です。")
+                }
+
                 // About
                 Section("このアプリについて") {
                     LabeledContent("バージョン", value: "1.0.0")

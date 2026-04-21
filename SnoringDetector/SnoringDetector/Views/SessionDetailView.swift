@@ -61,6 +61,57 @@ struct SessionDetailView: View {
                     VitalsSection(session: liveSession)
                 }
 
+                // SAS / Apnea risk
+                if !liveSession.apneaEvents.isEmpty {
+                    Section {
+                        ApneaRiskSection(session: liveSession)
+                    } header: {
+                        Text("無呼吸リスク（SAS予兆）")
+                    } footer: {
+                        Text("いびきが止まった後の無音時間を検出します。スコアが高い場合は睡眠外来・耳鼻咽喉科への受診をお勧めします。")
+                    }
+                }
+
+                // Breathing flow chart
+                if !liveSession.breathflowSamples.isEmpty {
+                    Section("呼吸フロー") {
+                        BreathflowChart(samples: liveSession.breathflowSamples)
+                            .padding(.vertical, 8)
+                    }
+                }
+
+                // Position timeline
+                if !liveSession.positionSamples.isEmpty {
+                    Section("寝姿勢タイムライン") {
+                        PositionTimeline(
+                            samples: liveSession.positionSamples,
+                            totalDuration: liveSession.duration
+                        )
+                        .padding(.vertical, 8)
+                    }
+                }
+
+                // Pinpoint playback (high-intensity moments)
+                if hasAudio && !liveSession.snoringEvents.isEmpty {
+                    Section("ピンポイント再生（強度順）") {
+                        ForEach(liveSession.snoringEvents.sorted { $0.intensity > $1.intensity }.prefix(5)) { event in
+                            SnoringEventRow(event: event, onSeek: {
+                                audioPlayer.seek(to: event.timeOffset)
+                                if !audioPlayer.isPlaying { audioPlayer.play() }
+                            })
+                        }
+                    }
+                }
+
+                // Teeth grinding events
+                if !liveSession.teethGrindingEvents.isEmpty {
+                    Section("歯ぎしりイベント（\(liveSession.teethGrindingEvents.count)件）") {
+                        ForEach(liveSession.teethGrindingEvents) { event in
+                            TeethGrindingRow(event: event)
+                        }
+                    }
+                }
+
                 // Sleep stage timeline
                 if !liveSession.sleepStages.isEmpty {
                     Section("睡眠ステージ") {
@@ -433,6 +484,179 @@ struct MetricRow: View {
             Label(label, systemImage: icon)
                 .symbolRenderingMode(.hierarchical)
                 .foregroundStyle(tint)
+        }
+    }
+}
+
+// MARK: - Apnea Risk Section
+
+struct ApneaRiskSection: View {
+    let session: SleepSession
+
+    var body: some View {
+        VStack(spacing: 14) {
+            // Gauge + label
+            HStack(spacing: 24) {
+                ZStack {
+                    Circle()
+                        .stroke(session.sasRiskColor.opacity(0.15), lineWidth: 10)
+                    Circle()
+                        .trim(from: 0, to: CGFloat(session.sasRiskScore) / 100)
+                        .stroke(session.sasRiskColor, style: StrokeStyle(lineWidth: 10, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
+                    VStack(spacing: 0) {
+                        Text(String(format: "%.0f", session.sasRiskScore))
+                            .font(.system(size: 30, weight: .bold, design: .rounded))
+                            .foregroundStyle(session.sasRiskColor)
+                        Text("/ 100").font(.caption2).foregroundStyle(.secondary)
+                    }
+                }
+                .frame(width: 90, height: 90)
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(session.sasRiskLabel)
+                        .font(.title3.weight(.bold))
+                        .foregroundStyle(session.sasRiskColor)
+                    Text("SASリスクスコア")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Text("無呼吸候補: \(session.apneaEvents.count)件")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                Spacer()
+            }
+
+            // Severity breakdown
+            if !session.apneaEvents.isEmpty {
+                let mild   = session.apneaEvents.filter { $0.severity == .mild }.count
+                let mod    = session.apneaEvents.filter { $0.severity == .moderate }.count
+                let severe = session.apneaEvents.filter { $0.severity == .severe }.count
+                HStack(spacing: 16) {
+                    if mild   > 0 { ApneaSeverityBadge(label: "軽度",   count: mild,   color: .yellow) }
+                    if mod    > 0 { ApneaSeverityBadge(label: "中等度", count: mod,    color: .orange) }
+                    if severe > 0 { ApneaSeverityBadge(label: "重度",   count: severe, color: .red)    }
+                }
+            }
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+struct ApneaSeverityBadge: View {
+    let label: String; let count: Int; let color: Color
+    var body: some View {
+        HStack(spacing: 5) {
+            Circle().fill(color).frame(width: 8, height: 8)
+            Text("\(label) \(count)件").font(.caption2).foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 10).padding(.vertical, 4)
+        .background(color.opacity(0.1), in: Capsule())
+    }
+}
+
+// MARK: - Breathflow Chart
+
+struct BreathflowChart: View {
+    let samples: [BreathflowSample]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("呼吸パターンの推移")
+                .font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+
+            Chart(samples) { s in
+                BarMark(
+                    x: .value("時刻", s.timeOffset / 60),
+                    y: .value("RMS", s.rmsLevel)
+                )
+                .foregroundStyle(s.state.color)
+            }
+            .chartXAxisLabel("経過時間（分）", alignment: .trailing)
+            .chartYAxis(.hidden)
+            .frame(height: 80)
+
+            HStack(spacing: 12) {
+                ForEach([
+                    ("いびき", Color.orange),
+                    ("呼吸",   Color.green),
+                    ("無音",   Color.red.opacity(0.7)),
+                    ("歯ぎしり", Color.purple)
+                ], id: \.0) { label, color in
+                    HStack(spacing: 4) {
+                        Circle().fill(color).frame(width: 7, height: 7)
+                        Text(label)
+                    }
+                }
+            }
+            .font(.caption2).foregroundStyle(.secondary)
+        }
+    }
+}
+
+// MARK: - Position Timeline
+
+struct PositionTimeline: View {
+    let samples: [SleepPositionSample]
+    let totalDuration: TimeInterval
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            if totalDuration > 0 {
+                GeometryReader { geo in
+                    HStack(spacing: 1) {
+                        ForEach(samples) { s in
+                            if s.duration > 0 {
+                                Rectangle()
+                                    .fill(s.position.color)
+                                    .frame(width: max(2, geo.size.width * CGFloat(s.duration / totalDuration)))
+                                    .overlay(alignment: .bottom) {
+                                        if s.duration / totalDuration > 0.08 {
+                                            Image(systemName: s.position.icon)
+                                                .font(.system(size: 8))
+                                                .foregroundStyle(.white)
+                                                .padding(.bottom, 2)
+                                        }
+                                    }
+                            }
+                        }
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+                }
+                .frame(height: 30)
+            }
+
+            let present = Set(samples.map(\.position))
+            HStack(spacing: 12) {
+                ForEach(SleepPosition.allCases.filter { present.contains($0) && $0 != .unknown }, id: \.self) { pos in
+                    HStack(spacing: 4) {
+                        Circle().fill(pos.color).frame(width: 8, height: 8)
+                        Text(pos.rawValue)
+                    }
+                }
+            }
+            .font(.caption2).foregroundStyle(.secondary)
+        }
+    }
+}
+
+// MARK: - Teeth Grinding Row
+
+struct TeethGrindingRow: View {
+    let event: TeethGrindingEvent
+    var body: some View {
+        HStack {
+            Image(systemName: "mouth.fill")
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(.purple)
+                .frame(width: 28)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(TimeFormat.elapsed(event.timeOffset))
+                    .font(.subheadline.weight(.medium))
+                Text("歯ぎしり")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer()
+            Text(TimeFormat.shortDuration(event.duration))
+                .font(.caption.weight(.medium)).foregroundStyle(.secondary)
         }
     }
 }

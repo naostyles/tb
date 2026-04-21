@@ -20,6 +20,7 @@ enum WatchMessageKey {
     static let avgOxygen       = "avgOxygen"
 
     static let typeSessionSummary = "sessionSummary"
+    static let hapticTrigger = "hapticTrigger"
 }
 
 enum WatchCommand {
@@ -54,6 +55,11 @@ class WatchConnectivityManager: NSObject, ObservableObject {
             msg[WatchMessageKey.heartRate] = Int(hr)
         }
         WCSession.default.sendMessage(msg, replyHandler: nil)
+    }
+
+    func sendHapticTrigger() {
+        guard WCSession.default.isReachable else { return }
+        WCSession.default.sendMessage([WatchMessageKey.hapticTrigger: true], replyHandler: nil)
     }
 
     func sendSessionSummary(session: SleepSession) {

@@ -61,6 +61,10 @@ struct SleepSession: Identifiable, Codable {
     var vitalSamples: [VitalSample]
     var noiseSamples: [NoiseSample]
     var sleepStages: [SleepStage]
+    var apneaEvents: [ApneaEvent]
+    var breathflowSamples: [BreathflowSample]
+    var positionSamples: [SleepPositionSample]
+    var teethGrindingEvents: [TeethGrindingEvent]
     var audioFileURL: URL?
 
     init(id: UUID = UUID(), startDate: Date = Date()) {
@@ -72,6 +76,10 @@ struct SleepSession: Identifiable, Codable {
         self.vitalSamples = []
         self.noiseSamples = []
         self.sleepStages = []
+        self.apneaEvents = []
+        self.breathflowSamples = []
+        self.positionSamples = []
+        self.teethGrindingEvents = []
     }
 
     // Forward-compatible decoder
@@ -86,6 +94,10 @@ struct SleepSession: Identifiable, Codable {
         vitalSamples       = try c.decodeIfPresent([VitalSample].self,       forKey: .vitalSamples)       ?? []
         noiseSamples       = try c.decodeIfPresent([NoiseSample].self,       forKey: .noiseSamples)       ?? []
         sleepStages        = try c.decodeIfPresent([SleepStage].self,        forKey: .sleepStages)        ?? []
+        apneaEvents         = try c.decodeIfPresent([ApneaEvent].self,          forKey: .apneaEvents)         ?? []
+        breathflowSamples   = try c.decodeIfPresent([BreathflowSample].self,    forKey: .breathflowSamples)   ?? []
+        positionSamples     = try c.decodeIfPresent([SleepPositionSample].self, forKey: .positionSamples)     ?? []
+        teethGrindingEvents = try c.decodeIfPresent([TeethGrindingEvent].self,  forKey: .teethGrindingEvents) ?? []
         audioFileURL       = try c.decodeIfPresent(URL.self, forKey: .audioFileURL)
     }
 
@@ -140,6 +152,52 @@ struct SleepSession: Identifiable, Codable {
         return noiseSamples.map(\.rmsLevel).reduce(0, +) / Double(noiseSamples.count)
     }
 
+    // MARK: - Apnea / SAS risk
+    var sasRiskScore: Double {
+        guard !apneaEvents.isEmpty else { return 0 }
+        let apneaPerHour = Double(apneaEvents.count) / max(1, duration / 3600)
+        let avgSilence   = apneaEvents.map(\.silenceDuration).reduce(0, +) / Double(apneaEvents.count)
+        let severePenalty = Double(apneaEvents.filter { $0.silenceDuration > 20 }.count) * 6
+        var risk = min(100, apneaPerHour * 3 + avgSilence * 1.5 + severePenalty)
+        if let spo2 = averageOxygen, spo2 < 0.94 { risk = min(100, risk + 20) }
+        return risk
+    }
+
+    var sasRiskLabel: String {
+        switch sasRiskScore {
+        case 0..<10:  return "低リスク"
+        case 10..<30: return "要注意"
+        case 30..<60: return "高リスク"
+        default:      return "要受診"
+        }
+    }
+
+    var sasRiskColor: Color {
+        switch sasRiskScore {
+        case 0..<10:  return .green
+        case 10..<30: return .yellow
+        case 30..<60: return .orange
+        default:      return .red
+        }
+    }
+
+    // MARK: - Position analysis
+    var dominantPosition: SleepPosition {
+        guard !positionSamples.isEmpty else { return .unknown }
+        let totals = Dictionary(grouping: positionSamples, by: \.position)
+            .mapValues { $0.reduce(0) { $0 + $1.duration } }
+        return totals.max(by: { $0.value < $1.value })?.key ?? .unknown
+    }
+
+    var snoringDurationByPosition: [SleepPosition: TimeInterval] {
+        var result: [SleepPosition: TimeInterval] = [:]
+        for event in snoringEvents where event.duration > 0 {
+            let pos = positionSamples.last(where: { $0.timeOffset <= event.timeOffset })?.position ?? .unknown
+            result[pos, default: 0] += event.duration
+        }
+        return result
+    }
+
     var qualityScore: Int {
         var score = 100.0
 
@@ -166,6 +224,10 @@ struct SleepSession: Identifiable, Codable {
             if spo2 < 90 { score -= 25 }
             else if spo2 < 94 { score -= 12 }
         }
+
+        // Apnea penalty
+        if sasRiskScore > 50 { score -= 25 }
+        else if sasRiskScore > 20 { score -= 12 }
 
         return max(10, Int(score.rounded()))
     }

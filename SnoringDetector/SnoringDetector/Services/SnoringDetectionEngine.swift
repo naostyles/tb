@@ -19,6 +19,10 @@ class SnoringDetectionEngine: ObservableObject {
     @Published var isSleepTalkingDetected = false
     @Published var sleepTalkingEvents: [SleepTalkingEvent] = []
 
+    @Published var isTeethGrindingDetected = false
+    @Published var teethGrindingEvents: [TeethGrindingEvent] = []
+    @Published var currentRMS: Float = 0
+
     struct Configuration {
         var amplitudeThreshold: Float = 0.006
         var snoringFrequencyLow: Float = 50
@@ -33,6 +37,10 @@ class SnoringDetectionEngine: ObservableObject {
         var detectSleepTalking: Bool = true
         var rejectNonSnoring: Bool = true
         var lowPowerMode: Bool = false
+        var grindingFrequencyLow: Float  = 600
+        var grindingFrequencyHigh: Float = 1400
+        var grindingEnergyRatio: Float   = 0.30
+        var detectTeethGrinding: Bool    = true
     }
 
     var configuration = Configuration()
@@ -52,6 +60,11 @@ class SnoringDetectionEngine: ObservableObject {
     private var talkingStartTime: Date?
     private var lastTalkingDetectionTime: Date?
     private var currentTalkingEvent: SleepTalkingEvent?
+
+    // Teeth grinding tracking
+    private var grindingStartTime: Date?
+    private var lastGrindingDetectionTime: Date?
+    private var currentGrindingEvent: TeethGrindingEvent?
 
     // Persistent FFT setup
     private var fftSetup: FFTSetup?
@@ -76,24 +89,33 @@ class SnoringDetectionEngine: ObservableObject {
 
         let samples = Array(UnsafeBufferPointer(start: data, count: fftSize))
         let rms = computeRMS(samples: samples)
+        currentRMS = rms
         let now = Date()
 
         guard rms > configuration.amplitudeThreshold else {
             handleSnoringSilence(now: now)
             handleTalkingSilence(now: now)
+            handleGrindingSilence(now: now)
             return
         }
 
         switch classify(samples: samples) {
         case .snoring:
             handleTalkingSilence(now: now)
+            handleGrindingSilence(now: now)
             handleSnoringActive(rms: rms, now: now, sessionStart: sessionStartTime)
         case .sleepTalking:
             handleSnoringSilence(now: now)
+            handleGrindingSilence(now: now)
             handleTalkingActive(now: now, sessionStart: sessionStartTime)
+        case .grindingTeeth:
+            handleSnoringSilence(now: now)
+            handleTalkingSilence(now: now)
+            handleGrindingActive(rms: rms, now: now, sessionStart: sessionStartTime)
         case .other:
             handleSnoringSilence(now: now)
             handleTalkingSilence(now: now)
+            handleGrindingSilence(now: now)
         }
     }
 
@@ -109,12 +131,18 @@ class SnoringDetectionEngine: ObservableObject {
         talkingStartTime = nil
         lastTalkingDetectionTime = nil
         currentTalkingEvent = nil
+        isTeethGrindingDetected = false
+        teethGrindingEvents.removeAll()
+        currentRMS = 0
+        grindingStartTime = nil
+        lastGrindingDetectionTime = nil
+        currentGrindingEvent = nil
         bufferCounter = 0
     }
 
     // MARK: - Sound Classification
 
-    private enum SoundClass { case snoring, sleepTalking, other }
+    private enum SoundClass { case snoring, sleepTalking, grindingTeeth, other }
 
     private func classify(samples: [Float]) -> SoundClass {
         var windowed = applyHannWindow(samples: samples)
@@ -125,6 +153,20 @@ class SnoringDetectionEngine: ObservableObject {
         let n = spectrum.count
         let totalEnergy = spectrum.reduce(0, +)
         guard totalEnergy > 0 else { return .other }
+
+        // Teeth grinding: strong energy in 600-1400 Hz with harmonic structure
+        if configuration.detectTeethGrinding {
+            let gLow  = min(Int(configuration.grindingFrequencyLow  / binWidth), n - 1)
+            let gHigh = min(Int(configuration.grindingFrequencyHigh / binWidth), n - 1)
+            if gHigh > gLow {
+                let gEnergy = spectrum[gLow..<gHigh].reduce(0, +)
+                if (gEnergy / totalEnergy) >= configuration.grindingEnergyRatio &&
+                   hasHarmonicStructure(spectrum: spectrum, binWidth: binWidth) {
+                    let gCentroid = spectralCentroid(spectrum: spectrum, binWidth: binWidth)
+                    if gCentroid > 700 && gCentroid < 1500 { return .grindingTeeth }
+                }
+            }
+        }
 
         // Low-band energy gate (snoring band)
         let lowBin  = min(Int(configuration.snoringFrequencyLow  / binWidth), n - 1)
@@ -232,6 +274,33 @@ class SnoringDetectionEngine: ObservableObject {
         isSleepTalkingDetected = false
         talkingStartTime = nil
         lastTalkingDetectionTime = nil
+    }
+
+    private func handleGrindingActive(rms: Float, now: Date, sessionStart: Date) {
+        lastGrindingDetectionTime = now
+        if grindingStartTime == nil { grindingStartTime = now }
+        let elapsed = now.timeIntervalSince(grindingStartTime!)
+        guard elapsed >= configuration.confirmationWindowSeconds else { return }
+        let intensity = Double(rms * 4).clamped(to: 0...1)
+        if !isTeethGrindingDetected {
+            isTeethGrindingDetected = true
+            currentGrindingEvent = TeethGrindingEvent(
+                startTime: now, timeOffset: now.timeIntervalSince(sessionStart), intensity: intensity)
+        }
+        currentGrindingEvent?.intensity = intensity
+    }
+
+    private func handleGrindingSilence(now: Date) {
+        guard let lastDetect = lastGrindingDetectionTime else {
+            isTeethGrindingDetected = false; return
+        }
+        guard now.timeIntervalSince(lastDetect) >= configuration.silenceWindowSeconds else { return }
+        if isTeethGrindingDetected, var event = currentGrindingEvent {
+            event.endTime = lastDetect
+            if event.duration > 0.5 { teethGrindingEvents.append(event) }
+            currentGrindingEvent = nil
+        }
+        isTeethGrindingDetected = false; grindingStartTime = nil; lastGrindingDetectionTime = nil
     }
 
     // MARK: - Spectral analysis helpers

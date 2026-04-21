@@ -8,6 +8,8 @@ class HealthKitManager: ObservableObject {
     @Published var isAuthorized = false
     @Published var currentHeartRate: Double? = nil   // live value during session
     @Published var currentOxygen: Double? = nil
+    @Published var todayStepCount: Int = 0
+    @Published var latestWeight: Double? = nil
 
     private let healthStore = HKHealthStore()
     private var heartRateQuery: HKAnchoredObjectQuery?
@@ -26,7 +28,9 @@ class HealthKitManager: ObservableObject {
             .heartRate,
             .oxygenSaturation,
             .respiratoryRate,
-            .heartRateVariabilitySDNN
+            .heartRateVariabilitySDNN,
+            .stepCount,
+            .bodyMass
         ]
         for qid in quantityIDs {
             if let qt = HKObjectType.quantityType(forIdentifier: qid) { t.insert(qt) }
@@ -151,6 +155,36 @@ class HealthKitManager: ObservableObject {
                 else { continuation.resume(returning: (samples as? [HKCategorySample]) ?? []) }
             }
             healthStore.execute(query)
+        }
+    }
+
+    // MARK: - Steps & Weight
+
+    func fetchStepsAndWeight(for date: Date = Date()) async {
+        guard isAuthorized else { return }
+        let start = Calendar.current.startOfDay(for: date)
+        let end   = Calendar.current.date(byAdding: .day, value: 1, to: start) ?? date
+
+        // Steps
+        if let stepType = HKObjectType.quantityType(forIdentifier: .stepCount) {
+            let predicate = HKQuery.predicateForSamples(withStart: start, end: end)
+            let steps = (try? await withCheckedThrowingContinuation { cont in
+                let q = HKStatisticsQuery(quantityType: stepType, quantitySamplePredicate: predicate,
+                                          options: .cumulativeSum) { _, stats, _ in
+                    cont.resume(returning: Int(stats?.sumQuantity()?.doubleValue(for: .count()) ?? 0))
+                }
+                healthStore.execute(q)
+            }) ?? 0
+            await MainActor.run { self.todayStepCount = steps }
+        }
+
+        // Weight (most recent)
+        if let weightType = HKObjectType.quantityType(forIdentifier: .bodyMass) {
+            let samples = (try? await querySamples(type: weightType, start: start.addingTimeInterval(-90*86400), end: end)) ?? []
+            if let latest = (samples as? [HKQuantitySample])?.first {
+                let kg = latest.quantity.doubleValue(for: HKUnit.gramUnit(with: .kilo))
+                await MainActor.run { self.latestWeight = kg }
+            }
         }
     }
 

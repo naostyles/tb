@@ -8,10 +8,14 @@ struct HistoryView: View {
     @State private var selectedSession: SleepSession?
     @State private var csvExportURL: URL?
     @State private var showingCSVExport = false
+    @State private var showingLifestyleLog = false
+    @State private var lifestyleLogDate = Date()
+    @State private var pdfExportURL: URL?
+    @State private var showingPDFExport = false
 
     private let periods = [7, 14, 30]
 
-    enum Mode: String, CaseIterable { case history = "履歴", analysis = "分析" }
+    enum Mode: String, CaseIterable { case history = "履歴", analysis = "分析", factor = "要因" }
 
     private var sessions: [SleepSession] {
         dataStore.sessionsForLastNDays(selectedPeriod)
@@ -47,11 +51,13 @@ struct HistoryView: View {
                             historyList
                         case .analysis:
                             AnalysisView(sessions: sessions, periodDays: selectedPeriod)
+                        case .factor:
+                            FactorAnalysisView(sessions: sessions)
                         }
                     }
                 }
             }
-            .navigationTitle(selectedMode == .analysis ? "睡眠分析" : "睡眠履歴")
+            .navigationTitle(selectedMode == .analysis ? "睡眠分析" : selectedMode == .factor ? "要因分析" : "睡眠履歴")
             .toolbar {
                 ToolbarItem(placement: .principal) {
                     Picker("期間", selection: $selectedPeriod) {
@@ -60,19 +66,37 @@ struct HistoryView: View {
                     .pickerStyle(.segmented)
                     .frame(width: 220)
                 }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        Button {
+                            lifestyleLogDate = Date()
+                            showingLifestyleLog = true
+                        } label: {
+                            Label("今日のライフスタイルを記録", systemImage: "note.text.badge.plus")
+                        }
+                        if !sessions.isEmpty {
+                            Button { exportCSV() } label: {
+                                Label("CSVで書き出す", systemImage: "tablecells")
+                            }
+                            Button { exportPDF() } label: {
+                                Label("医師向けPDFレポート", systemImage: "doc.richtext")
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                    }
+                }
             }
             .sheet(item: $selectedSession) { SessionDetailView(session: $0).environmentObject(dataStore) }
             .sheet(isPresented: $showingCSVExport) {
                 if let url = csvExportURL { CSVShareSheet(url: url) }
             }
-            .toolbar {
-                if selectedMode == .history && !dataStore.sessions.isEmpty {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button { exportCSV() } label: {
-                            Image(systemName: "square.and.arrow.up")
-                        }
-                    }
-                }
+            .sheet(isPresented: $showingPDFExport) {
+                if let url = pdfExportURL { CSVShareSheet(url: url) }
+            }
+            .sheet(isPresented: $showingLifestyleLog) {
+                LifestyleLogView(date: lifestyleLogDate, existing: dataStore.log(for: lifestyleLogDate))
+                    .environmentObject(dataStore)
             }
         }
     }
@@ -86,6 +110,15 @@ struct HistoryView: View {
         showingCSVExport = true
     }
 
+    private func exportPDF() {
+        let data = PDFReportGenerator.generate(sessions: sessions, days: selectedPeriod)
+        let name = "sleep_report_\(Int(Date().timeIntervalSince1970)).pdf"
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(name)
+        try? data.write(to: url)
+        pdfExportURL = url
+        showingPDFExport = true
+    }
+
     private var historyList: some View {
         List {
             Section {
@@ -97,9 +130,21 @@ struct HistoryView: View {
             ForEach(grouped, id: \.key) { group in
                 Section(group.key) {
                     ForEach(group.sessions) { session in
-                        SessionRow(session: session)
-                            .contentShape(Rectangle())
-                            .onTapGesture { selectedSession = session }
+                        SessionRow(
+                            session: session,
+                            hasLifestyleLog: dataStore.log(for: session.startDate) != nil
+                        )
+                        .contentShape(Rectangle())
+                        .onTapGesture { selectedSession = session }
+                        .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                            Button {
+                                lifestyleLogDate = session.startDate
+                                showingLifestyleLog = true
+                            } label: {
+                                Label("記録", systemImage: "note.text.badge.plus")
+                            }
+                            .tint(.indigo)
+                        }
                     }
                     .onDelete { indices in
                         for i in indices { dataStore.delete(session: group.sessions[i]) }
@@ -127,6 +172,7 @@ struct EmptyHistoryView: View {
 
 struct SessionRow: View {
     let session: SleepSession
+    var hasLifestyleLog: Bool = false
 
     var body: some View {
         HStack(spacing: 14) {
@@ -158,7 +204,14 @@ struct SessionRow: View {
 
             Spacer()
 
-            QualityTag(label: session.qualityLabel, color: session.qualityColor)
+            VStack(alignment: .trailing, spacing: 4) {
+                QualityTag(label: session.qualityLabel, color: session.qualityColor)
+                if hasLifestyleLog {
+                    Image(systemName: "note.text")
+                        .font(.caption2)
+                        .foregroundStyle(.indigo.opacity(0.7))
+                }
+            }
         }
         .padding(.vertical, 4)
     }

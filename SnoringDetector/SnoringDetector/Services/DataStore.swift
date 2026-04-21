@@ -8,10 +8,13 @@ class DataStore: ObservableObject {
     @Published var currentSession: SleepSession?
 
     private let sessionsKey = "saved_sessions"
+    private let logsKey = "lifestyle_logs"
+    @Published var lifestyleLogs: [LifestyleLog] = []
 
     private init() {
         migrateDetectionSettings()
         load()
+        loadLogs()
     }
 
     /// Reset detection settings that were too strict in a previous build.
@@ -38,7 +41,11 @@ class DataStore: ObservableObject {
         sleepTalkingEvents: [SleepTalkingEvent] = [],
         tossEvents: [TossEvent] = [],
         noiseSamples: [NoiseSample] = [],
-        sleepStages: [SleepStage] = []
+        sleepStages: [SleepStage] = [],
+        apneaEvents: [ApneaEvent] = [],
+        breathflowSamples: [BreathflowSample] = [],
+        positionSamples: [SleepPositionSample] = [],
+        teethGrindingEvents: [TeethGrindingEvent] = []
     ) {
         var finished = session
         finished.endDate = Date()
@@ -47,6 +54,10 @@ class DataStore: ObservableObject {
         finished.tossEvents         = tossEvents
         finished.noiseSamples       = noiseSamples
         finished.sleepStages        = sleepStages
+        finished.apneaEvents         = apneaEvents
+        finished.breathflowSamples   = breathflowSamples
+        finished.positionSamples     = positionSamples
+        finished.teethGrindingEvents = teethGrindingEvents
         sessions.insert(finished, at: 0)
         currentSession = nil
         save()
@@ -69,7 +80,7 @@ class DataStore: ObservableObject {
 
     func exportCSV(sessions: [SleepSession]? = nil) -> String {
         let rows = (sessions ?? self.sessions)
-        var csv = "日付,就寝時刻,起床時刻,睡眠時間(分),いびき割合(%),いびき回数,いびき時間(分),寝言回数,寝返り回数,平均心拍数(bpm),平均血中酸素(%),深い眠り(分),浅い眠り(分),REM(分),スコア\n"
+        var csv = "日付,就寝時刻,起床時刻,睡眠時間(分),いびき割合(%),いびき回数,いびき時間(分),寝言回数,寝返り回数,平均心拍数(bpm),平均血中酸素(%),深い眠り(分),浅い眠り(分),REM(分),スコア,無呼吸候補\n"
         let fmt = DateFormatter()
         fmt.locale = Locale(identifier: "ja_JP")
         fmt.dateFormat = "yyyy/MM/dd"
@@ -93,7 +104,8 @@ class DataStore: ObservableObject {
             let light = String(format: "%.0f", s.lightSleepDuration / 60)
             let rem   = String(format: "%.0f", s.remSleepDuration / 60)
             let score = "\(s.qualityScore)"
-            csv += "\(date),\(bed),\(wake),\(dur),\(snorePct),\(snoreCnt),\(snoreDur),\(talkCnt),\(tossCnt),\(hr),\(spo2),\(deep),\(light),\(rem),\(score)\n"
+            let apneaCnt = "\(s.apneaEvents.count)"
+            csv += "\(date),\(bed),\(wake),\(dur),\(snorePct),\(snoreCnt),\(snoreDur),\(talkCnt),\(tossCnt),\(hr),\(spo2),\(deep),\(light),\(rem),\(score),\(apneaCnt)\n"
         }
         return csv
     }
@@ -122,6 +134,38 @@ class DataStore: ObservableObject {
         if let decoded = try? decoder.decode([SleepSession].self, from: data) {
             sessions = decoded
         }
+    }
+
+    // MARK: - Lifestyle Log
+
+    func saveLog(_ log: LifestyleLog) {
+        if let idx = lifestyleLogs.firstIndex(where: { $0.id == log.id }) {
+            lifestyleLogs[idx] = log
+        } else {
+            lifestyleLogs.insert(log, at: 0)
+        }
+        saveLogs()
+    }
+
+    func log(for date: Date) -> LifestyleLog? {
+        let target = Calendar.current.startOfDay(for: date)
+        return lifestyleLogs.first { Calendar.current.isDate($0.date, inSameDayAs: target) }
+    }
+
+    func logOrNew(for date: Date) -> LifestyleLog {
+        log(for: date) ?? LifestyleLog(date: date)
+    }
+
+    private func saveLogs() {
+        if let data = try? JSONEncoder().encode(lifestyleLogs) {
+            UserDefaults.standard.set(data, forKey: logsKey)
+        }
+    }
+
+    private func loadLogs() {
+        guard let data = UserDefaults.standard.data(forKey: logsKey),
+              let decoded = try? JSONDecoder().decode([LifestyleLog].self, from: data) else { return }
+        lifestyleLogs = decoded
     }
 
     // MARK: - Statistics
