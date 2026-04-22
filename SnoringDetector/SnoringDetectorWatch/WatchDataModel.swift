@@ -7,7 +7,10 @@ class WatchDataModel: ObservableObject {
 
     @Published var isRecording = false
     @Published var isSnoringDetected = false
+    @Published var isTalkingDetected = false
     @Published var intensity: Double = 0.0
+    @Published var currentHeartRate: Int? = nil
+    @Published var tossCount: Int = 0
     @Published var lastSummary: SessionSummary?
 
     struct SessionSummary {
@@ -15,6 +18,10 @@ class WatchDataModel: ObservableObject {
         let snoringPercentage: Double
         let qualityScore: Int
         let eventCount: Int
+        let talkingCount: Int
+        let tossCount: Int
+        let avgHeartRate: Double?
+        let avgOxygen: Double?
 
         var formattedDuration: String {
             let h = Int(duration) / 3600
@@ -47,7 +54,10 @@ class WatchDataModel: ObservableObject {
         DispatchQueue.main.async {
             if let v = message["isRecording"]     as? Bool   { self.isRecording = v }
             if let v = message["snoringDetected"] as? Bool   { self.isSnoringDetected = v }
+            if let v = message["talkingDetected"] as? Bool   { self.isTalkingDetected = v }
             if let v = message["intensity"]       as? Double { self.intensity = v }
+            if let v = message["heartRate"]       as? Int    { self.currentHeartRate = v }
+            if let v = message["tossCount"]       as? Int    { self.tossCount = v }
         }
     }
 
@@ -58,7 +68,11 @@ class WatchDataModel: ObservableObject {
                 duration:          context["duration"]          as? TimeInterval ?? 0,
                 snoringPercentage: context["snoringPercentage"] as? Double ?? 0,
                 qualityScore:      context["qualityScore"]      as? Int ?? 0,
-                eventCount:        context["eventCount"]        as? Int ?? 0
+                eventCount:        context["eventCount"]        as? Int ?? 0,
+                talkingCount:      context["talkingCount"]      as? Int ?? 0,
+                tossCount:         context["tossCount"]         as? Int ?? 0,
+                avgHeartRate:      context["avgHeartRate"]      as? Double,
+                avgOxygen:         context["avgOxygen"]         as? Double
             )
         }
     }

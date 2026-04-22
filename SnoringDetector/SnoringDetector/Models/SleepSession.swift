@@ -1,18 +1,107 @@
 import Foundation
 import SwiftUI
 
+// MARK: - Time Formatters
+
+enum TimeFormat {
+    static func clock(_ s: TimeInterval) -> String {
+        String(format: "%02d:%02d:%02d", Int(s) / 3600, (Int(s) % 3600) / 60, Int(s) % 60)
+    }
+
+    static func playback(_ s: TimeInterval) -> String {
+        String(format: "%d:%02d", Int(s) / 60, Int(s) % 60)
+    }
+
+    static func shortDuration(_ s: TimeInterval) -> String {
+        let m = Int(s) / 60, sec = Int(s) % 60
+        return m > 0 ? "\(m)分\(sec)秒" : "\(sec)秒"
+    }
+
+    static func elapsed(_ s: TimeInterval) -> String {
+        let h = Int(s) / 3600, m = (Int(s) % 3600) / 60, sec = Int(s) % 60
+        return h > 0 ? String(format: "%d:%02d:%02d 経過", h, m, sec)
+                     : String(format: "%d:%02d 経過", m, sec)
+    }
+
+    static func longDuration(_ s: TimeInterval) -> String {
+        String(format: "%d時間%02d分", Int(s) / 3600, (Int(s) % 3600) / 60)
+    }
+}
+
+enum AppDateFormatter {
+    private static let jaJP = Locale(identifier: "ja_JP")
+
+    static let sessionDateTime: DateFormatter = make(format: "M月d日(E) HH:mm")
+    static let sessionDate: DateFormatter     = make(format: "M月d日(E)")
+    static let bedtime: DateFormatter         = make(format: "HH:mm 就寝")
+    static let shortTime: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = jaJP
+        f.timeStyle = .short
+        return f
+    }()
+
+    private static func make(format: String) -> DateFormatter {
+        let f = DateFormatter()
+        f.locale = jaJP
+        f.dateFormat = format
+        return f
+    }
+}
+
+// MARK: - SleepSession
+
 struct SleepSession: Identifiable, Codable {
     let id: UUID
     var startDate: Date
     var endDate: Date?
     var snoringEvents: [SnoringEvent]
+    var sleepTalkingEvents: [SleepTalkingEvent]
+    var tossEvents: [TossEvent]
+    var vitalSamples: [VitalSample]
+    var noiseSamples: [NoiseSample]
+    var sleepStages: [SleepStage]
+    var apneaEvents: [ApneaEvent]
+    var breathflowSamples: [BreathflowSample]
+    var positionSamples: [SleepPositionSample]
+    var teethGrindingEvents: [TeethGrindingEvent]
     var audioFileURL: URL?
 
     init(id: UUID = UUID(), startDate: Date = Date()) {
         self.id = id
         self.startDate = startDate
         self.snoringEvents = []
+        self.sleepTalkingEvents = []
+        self.tossEvents = []
+        self.vitalSamples = []
+        self.noiseSamples = []
+        self.sleepStages = []
+        self.apneaEvents = []
+        self.breathflowSamples = []
+        self.positionSamples = []
+        self.teethGrindingEvents = []
     }
+
+    // Forward-compatible decoder
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id                 = try c.decode(UUID.self, forKey: .id)
+        startDate          = try c.decode(Date.self, forKey: .startDate)
+        endDate            = try c.decodeIfPresent(Date.self, forKey: .endDate)
+        snoringEvents      = try c.decodeIfPresent([SnoringEvent].self,      forKey: .snoringEvents)      ?? []
+        sleepTalkingEvents = try c.decodeIfPresent([SleepTalkingEvent].self, forKey: .sleepTalkingEvents) ?? []
+        tossEvents         = try c.decodeIfPresent([TossEvent].self,         forKey: .tossEvents)         ?? []
+        vitalSamples       = try c.decodeIfPresent([VitalSample].self,       forKey: .vitalSamples)       ?? []
+        noiseSamples       = try c.decodeIfPresent([NoiseSample].self,       forKey: .noiseSamples)       ?? []
+        sleepStages        = try c.decodeIfPresent([SleepStage].self,        forKey: .sleepStages)        ?? []
+        apneaEvents         = try c.decodeIfPresent([ApneaEvent].self,          forKey: .apneaEvents)         ?? []
+        breathflowSamples   = try c.decodeIfPresent([BreathflowSample].self,    forKey: .breathflowSamples)   ?? []
+        positionSamples     = try c.decodeIfPresent([SleepPositionSample].self, forKey: .positionSamples)     ?? []
+        teethGrindingEvents = try c.decodeIfPresent([TeethGrindingEvent].self,  forKey: .teethGrindingEvents) ?? []
+        audioFileURL       = try c.decodeIfPresent(URL.self, forKey: .audioFileURL)
+    }
+
+    // MARK: - Computed
 
     var duration: TimeInterval {
         guard let end = endDate else { return Date().timeIntervalSince(startDate) }
@@ -33,14 +122,114 @@ struct SleepSession: Identifiable, Codable {
         return snoringEvents.map(\.intensity).reduce(0, +) / Double(snoringEvents.count)
     }
 
-    var qualityScore: Int {
-        switch snoringPercentage {
-        case 0..<5:   return 100
-        case 5..<15:  return 80
-        case 15..<30: return 60
-        case 30..<50: return 40
-        default:      return 20
+    var heartRateSamples:  [VitalSample] { vitalSamples.filter { $0.type == .heartRate } }
+    var oxygenSamples:     [VitalSample] { vitalSamples.filter { $0.type == .oxygenSaturation } }
+    var respiratorySamples:[VitalSample] { vitalSamples.filter { $0.type == .respiratoryRate } }
+
+    var averageHeartRate: Double? {
+        let s = heartRateSamples
+        guard !s.isEmpty else { return nil }
+        return s.map(\.value).reduce(0, +) / Double(s.count)
+    }
+
+    var averageOxygen: Double? {
+        let s = oxygenSamples
+        guard !s.isEmpty else { return nil }
+        return s.map(\.value).reduce(0, +) / Double(s.count)
+    }
+
+    var deepSleepDuration: TimeInterval {
+        sleepStages.filter { $0.stage == .deep }.map(\.duration).reduce(0, +)
+    }
+    var remSleepDuration: TimeInterval {
+        sleepStages.filter { $0.stage == .rem }.map(\.duration).reduce(0, +)
+    }
+    var lightSleepDuration: TimeInterval {
+        sleepStages.filter { $0.stage == .light }.map(\.duration).reduce(0, +)
+    }
+    var averageNoiseLevel: Double {
+        guard !noiseSamples.isEmpty else { return 0 }
+        return noiseSamples.map(\.rmsLevel).reduce(0, +) / Double(noiseSamples.count)
+    }
+
+    // MARK: - Apnea / SAS risk
+    var sasRiskScore: Double {
+        guard !apneaEvents.isEmpty else { return 0 }
+        let apneaPerHour = Double(apneaEvents.count) / max(1, duration / 3600)
+        let avgSilence   = apneaEvents.map(\.silenceDuration).reduce(0, +) / Double(apneaEvents.count)
+        let severePenalty = Double(apneaEvents.filter { $0.silenceDuration > 20 }.count) * 6
+        var risk = min(100, apneaPerHour * 3 + avgSilence * 1.5 + severePenalty)
+        if let spo2 = averageOxygen, spo2 < 0.94 { risk = min(100, risk + 20) }
+        return risk
+    }
+
+    var sasRiskLabel: String {
+        switch sasRiskScore {
+        case 0..<10:  return "低リスク"
+        case 10..<30: return "要注意"
+        case 30..<60: return "高リスク"
+        default:      return "要受診"
         }
+    }
+
+    var sasRiskColor: Color {
+        switch sasRiskScore {
+        case 0..<10:  return .green
+        case 10..<30: return .yellow
+        case 30..<60: return .orange
+        default:      return .red
+        }
+    }
+
+    // MARK: - Position analysis
+    var dominantPosition: SleepPosition {
+        guard !positionSamples.isEmpty else { return .unknown }
+        let totals = Dictionary(grouping: positionSamples, by: \.position)
+            .mapValues { $0.reduce(0) { $0 + $1.duration } }
+        return totals.max(by: { $0.value < $1.value })?.key ?? .unknown
+    }
+
+    var snoringDurationByPosition: [SleepPosition: TimeInterval] {
+        var result: [SleepPosition: TimeInterval] = [:]
+        for event in snoringEvents where event.duration > 0 {
+            let pos = positionSamples.last(where: { $0.timeOffset <= event.timeOffset })?.position ?? .unknown
+            result[pos, default: 0] += event.duration
+        }
+        return result
+    }
+
+    var qualityScore: Int {
+        var score = 100.0
+
+        // Snoring penalty
+        switch snoringPercentage {
+        case 0..<5:   break
+        case 5..<15:  score -= 15
+        case 15..<30: score -= 30
+        case 30..<50: score -= 50
+        default:      score -= 70
+        }
+
+        // Sleep talking penalty (minor)
+        let talkingMinutes = sleepTalkingEvents.map(\.duration).reduce(0, +) / 60
+        score -= min(10, talkingMinutes * 0.5)
+
+        // Toss/turn penalty (frequent movement = restless sleep)
+        let tossesPerHour = duration > 0 ? Double(tossEvents.count) / (duration / 3600) : 0
+        if tossesPerHour > 20 { score -= 15 }
+        else if tossesPerHour > 10 { score -= 7 }
+
+        // SpO2 penalty (low oxygen saturation)
+        if let spo2 = averageOxygen {
+            if spo2 < 90 { score -= 25 }
+            else if spo2 < 94 { score -= 12 }
+        }
+
+        // Apnea penalty
+        if sasRiskScore > 50 { score -= 25 }
+        else if sasRiskScore > 20 { score -= 12 }
+
+        return max(10, Int(score.rounded()))
     }
 
     var qualityLabel: String {
@@ -61,11 +250,6 @@ struct SleepSession: Identifiable, Codable {
         }
     }
 
-    var formattedDuration: String {
-        TimeFormat.longDuration(duration)
-    }
-
-    var formattedDate: String {
-        AppDateFormatter.sessionDateTime.string(from: startDate)
-    }
+    var formattedDuration: String { TimeFormat.longDuration(duration) }
+    var formattedDate: String     { AppDateFormatter.sessionDateTime.string(from: startDate) }
 }
