@@ -289,8 +289,17 @@ struct SettingsView: View {
                 }
 
                 // About
-                Section("このアプリについて") {
+                Section("Slumberについて") {
                     LabeledContent("バージョン", value: "1.0.0")
+                    HStack(spacing: 12) {
+                        Image(systemName: "lock.shield.fill")
+                            .symbolRenderingMode(.hierarchical)
+                            .foregroundStyle(.indigo)
+                        Text("すべての音声解析はこの端末内のみで完結します。録音データや解析結果が外部サーバーに送信されることはありません。")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 4)
                     Link(destination: URL(string: "https://www.apple.com/jp/privacy/")!) {
                         Label("プライバシーポリシー", systemImage: "arrow.up.right.square")
                             .foregroundStyle(.primary)

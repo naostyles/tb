@@ -169,11 +169,11 @@ struct HistoryView: View {
 
 struct EmptyHistoryView: View {
     var body: some View {
-        ContentUnavailableView(
-            "記録がありません",
-            systemImage: "moon.zzz",
-            description: Text("ダッシュボードから計測を開始しましょう")
-        )
+        ContentUnavailableView {
+            Label("記録がありません", systemImage: "moon.zzz.fill")
+        } description: {
+            Text("ホームタブから最初の計測を始めましょう")
+        }
     }
 }
 
@@ -185,19 +185,9 @@ struct SessionRow: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            // Score ring
-            ZStack {
-                Circle()
-                    .stroke(session.qualityColor.opacity(0.2), lineWidth: 3.5)
-                Circle()
-                    .trim(from: 0, to: CGFloat(session.qualityScore) / 100)
-                    .stroke(session.qualityColor, style: StrokeStyle(lineWidth: 3.5, lineCap: .round))
-                    .rotationEffect(.degrees(-90))
-                Text("\(session.qualityScore)")
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
-                    .foregroundStyle(session.qualityColor)
-            }
-            .frame(width: 44, height: 44)
+            ScoreRing(score: session.qualityScore,
+                      color: session.qualityColor,
+                      diameter: 44)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(startTimeLabel(session.startDate))

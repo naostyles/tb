@@ -1,30 +1,22 @@
 import SwiftUI
 
 struct ContentView: View {
-    @State private var selectedTab: Tab = .dashboard
+    @State private var selectedTab: Tab = .home
 
-    enum Tab {
-        case dashboard, history, settings
-    }
+    enum Tab { case home, history, settings }
 
     var body: some View {
         TabView(selection: $selectedTab) {
             DashboardView()
-                .tabItem {
-                    Label("ダッシュボード", systemImage: "moon.zzz.fill")
-                }
-                .tag(Tab.dashboard)
+                .tabItem { Label("ホーム", systemImage: "moon.zzz.fill") }
+                .tag(Tab.home)
 
             HistoryView()
-                .tabItem {
-                    Label("履歴", systemImage: "chart.bar.fill")
-                }
+                .tabItem { Label("記録", systemImage: "chart.bar.fill") }
                 .tag(Tab.history)
 
             SettingsView()
-                .tabItem {
-                    Label("設定", systemImage: "gearshape.fill")
-                }
+                .tabItem { Label("設定", systemImage: "gearshape.fill") }
                 .tag(Tab.settings)
         }
         .tint(.indigo)

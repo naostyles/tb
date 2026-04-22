@@ -433,24 +433,10 @@ struct ScoreHeroView: View {
     let session: SleepSession
 
     var body: some View {
-        HStack(spacing: 28) {
-            ZStack {
-                Circle()
-                    .stroke(session.qualityColor.opacity(0.15), lineWidth: 10)
-                Circle()
-                    .trim(from: 0, to: CGFloat(session.qualityScore) / 100)
-                    .stroke(session.qualityColor, style: StrokeStyle(lineWidth: 10, lineCap: .round))
-                    .rotationEffect(.degrees(-90))
-                    .animation(.spring(duration: 1.0), value: session.qualityScore)
-                VStack(spacing: 0) {
-                    Text("\(session.qualityScore)")
-                        .font(.system(size: 42, weight: .bold, design: .rounded))
-                        .foregroundStyle(session.qualityColor)
-                    Text("点")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
-            }
-            .frame(width: 110, height: 110)
+        HStack(spacing: 24) {
+            ScoreRing(score: session.qualityScore,
+                      color: session.qualityColor,
+                      diameter: 108)
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(session.qualityLabel)
@@ -463,9 +449,12 @@ struct ScoreHeroView: View {
             }
             Spacer()
         }
-        .padding(.vertical, 20)
+        .padding(.vertical, 22)
         .padding(.horizontal, 24)
-        .background(session.qualityColor.opacity(0.07))
+        .background(
+            session.qualityColor.opacity(0.08)
+                .clipShape(RoundedRectangle(cornerRadius: 0))
+        )
     }
 }
 
