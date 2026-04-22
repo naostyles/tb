@@ -38,7 +38,32 @@
 		AB000004 /* WatchConnectivityService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB100004 /* WatchConnectivityService.swift */; };
 		AB000005 /* WatchDataModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB100005 /* WatchDataModel.swift */; };
 		AB000006 /* WatchAssets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AB100006 /* WatchAssets.xcassets */; };
+		AB000007 /* SnoringDetectorWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = AB200000 /* SnoringDetectorWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		AA700001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AA600000 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AB400000;
+			remoteInfo = SnoringDetectorWatch;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		AA430000 /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				AB000007 /* SnoringDetectorWatch.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		35DB23542F98F6C000619538 /* SnoringDetector.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SnoringDetector.entitlements; sourceTree = "<group>"; };
@@ -179,10 +204,12 @@
 			buildPhases = (
 				AA410000 /* Sources */,
 				AA420000 /* Resources */,
+				AA430000 /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				AA700000 /* PBXTargetDependency */,
 			);
 			name = SnoringDetector;
 			productName = SnoringDetector;
@@ -307,6 +334,14 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		AA700000 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AB400000 /* SnoringDetectorWatch */;
+			targetProxy = AA700001 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		AA501000 /* Debug */ = {
