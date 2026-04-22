@@ -42,6 +42,7 @@ class WatchConnectivityManager: NSObject, ObservableObject {
         }
     }
 
+    @MainActor
     func sendSessionStatus(isRecording: Bool, snoringDetected: Bool, intensity: Double) {
         guard WCSession.default.isReachable else { return }
         var msg: [String: Any] = [
