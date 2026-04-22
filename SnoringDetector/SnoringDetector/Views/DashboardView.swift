@@ -120,7 +120,7 @@ struct LastNightCard: View {
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
             }
-            .background(.hero, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .background(LinearGradient.hero, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
             .shadow(color: Color.slumberDeep.opacity(0.35), radius: 18, y: 8)
         }
         .buttonStyle(.plain)
@@ -367,7 +367,7 @@ struct ScoreRing: View {
 // MARK: - Tips Carousel
 
 private struct TipsCarousel: View {
-    private struct Tip: Identifiable {
+    fileprivate struct Tip: Identifiable {
         let id = UUID()
         let icon: String; let color: Color
         let title: String; let body: String
