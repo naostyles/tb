@@ -22,12 +22,12 @@
 	<string>1</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>いびきを録音・検出するためにマイクへのアクセスが必要です。</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>睡眠データをHealthKitと連携するために必要です。</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>睡眠セッションのデータをHealthKitに保存するために必要です。</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>いびきを録音・検出するためにマイクへのアクセスが必要です。</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

@@ -23,6 +23,7 @@
 		AA000014 /* SnoringChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA100014 /* SnoringChartView.swift */; };
 		AA000015 /* SessionDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA100015 /* SessionDetailView.swift */; };
 		AA000016 /* AudioLevelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA100016 /* AudioLevelView.swift */; };
+		AA000017 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AA100017 /* Assets.xcassets */; };
 		AA000020 /* ScheduleManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA100020 /* ScheduleManager.swift */; };
 		AA000021 /* AudioPlayerManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA100021 /* AudioPlayerManager.swift */; };
 		AA000022 /* SessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA100022 /* SessionManager.swift */; };
@@ -31,9 +32,6 @@
 		AA000032 /* PDFReportGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA100032 /* PDFReportGenerator.swift */; };
 		AA000033 /* LifestyleLogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA100033 /* LifestyleLogView.swift */; };
 		AA000034 /* FactorAnalysisView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA100034 /* FactorAnalysisView.swift */; };
-		AA000017 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AA100017 /* Assets.xcassets */; };
-		AA000018 /* Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = AA100018 /* Info.plist */; };
-		/* Watch */
 		AB000001 /* WatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB100001 /* WatchApp.swift */; };
 		AB000002 /* WatchContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB100002 /* WatchContentView.swift */; };
 		AB000003 /* WatchSessionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB100003 /* WatchSessionView.swift */; };
@@ -43,6 +41,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		35DB23542F98F6C000619538 /* SnoringDetector.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SnoringDetector.entitlements; sourceTree = "<group>"; };
+		35DB23552F98F6D200619538 /* SnoringDetectorWatch.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SnoringDetectorWatch.entitlements; sourceTree = "<group>"; };
 		AA100001 /* SnoringDetectorApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnoringDetectorApp.swift; sourceTree = "<group>"; };
 		AA100002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		AA100003 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
@@ -59,6 +59,8 @@
 		AA100014 /* SnoringChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnoringChartView.swift; sourceTree = "<group>"; };
 		AA100015 /* SessionDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionDetailView.swift; sourceTree = "<group>"; };
 		AA100016 /* AudioLevelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioLevelView.swift; sourceTree = "<group>"; };
+		AA100017 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		AA100018 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		AA100020 /* ScheduleManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleManager.swift; sourceTree = "<group>"; };
 		AA100021 /* AudioPlayerManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayerManager.swift; sourceTree = "<group>"; };
 		AA100022 /* SessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionManager.swift; sourceTree = "<group>"; };
@@ -67,8 +69,6 @@
 		AA100032 /* PDFReportGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFReportGenerator.swift; sourceTree = "<group>"; };
 		AA100033 /* LifestyleLogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LifestyleLogView.swift; sourceTree = "<group>"; };
 		AA100034 /* FactorAnalysisView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FactorAnalysisView.swift; sourceTree = "<group>"; };
-		AA100017 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		AA100018 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		AA200000 /* SnoringDetector.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SnoringDetector.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		AB100001 /* WatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchApp.swift; sourceTree = "<group>"; };
 		AB100002 /* WatchContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchContentView.swift; sourceTree = "<group>"; };
@@ -92,6 +92,7 @@
 		AA300001 /* SnoringDetector */ = {
 			isa = PBXGroup;
 			children = (
+				35DB23542F98F6C000619538 /* SnoringDetector.entitlements */,
 				AA100001 /* SnoringDetectorApp.swift */,
 				AA100002 /* ContentView.swift */,
 				AA300010 /* Views */,
@@ -146,9 +147,19 @@
 			path = Models;
 			sourceTree = "<group>";
 		};
+		AA300099 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				AA200000 /* SnoringDetector.app */,
+				AB200000 /* SnoringDetectorWatch.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
 		AB300001 /* SnoringDetectorWatch */ = {
 			isa = PBXGroup;
 			children = (
+				35DB23552F98F6D200619538 /* SnoringDetectorWatch.entitlements */,
 				AB100001 /* WatchApp.swift */,
 				AB100002 /* WatchContentView.swift */,
 				AB100003 /* WatchSessionView.swift */,
@@ -157,15 +168,6 @@
 				AB100006 /* WatchAssets.xcassets */,
 			);
 			path = SnoringDetectorWatch;
-			sourceTree = "<group>";
-		};
-		AA300099 /* Products */ = {
-			isa = PBXGroup;
-			children = (
-				AA200000 /* SnoringDetector.app */,
-				AB200000 /* SnoringDetectorWatch.app */,
-			);
-			name = Products;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -241,6 +243,25 @@
 		};
 /* End PBXProject section */
 
+/* Begin PBXResourcesBuildPhase section */
+		AA420000 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AA000017 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AB420000 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AB000006 /* WatchAssets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		AA410000 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -273,14 +294,6 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		AA420000 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				AA000017 /* Assets.xcassets in Resources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		AB410000 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -293,14 +306,6 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		AB420000 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				AB000006 /* WatchAssets.xcassets in Resources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
@@ -310,16 +315,24 @@
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = SnoringDetector/SnoringDetector.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 8U48PF347K;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = "SnoringDetector/Info.plist";
+				INFOPLIST_FILE = SnoringDetector/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.example.SnoringDetector;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hanabi.SnoringDetector;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 1;
@@ -332,61 +345,27 @@
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = SnoringDetector/SnoringDetector.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 8U48PF347K;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = "SnoringDetector/Info.plist";
+				INFOPLIST_FILE = SnoringDetector/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.example.SnoringDetector;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hanabi.SnoringDetector;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 1;
-			};
-			name = Release;
-		};
-		AB501000 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
-				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.example.SnoringDetector.watchkitapp;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = watchos;
-				SKIP_INSTALL = YES;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 4;
-				WATCHOS_DEPLOYMENT_TARGET = 10.0;
-			};
-			name = Debug;
-		};
-		AB502000 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
-				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.example.SnoringDetector.watchkitapp;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = watchos;
-				SKIP_INSTALL = YES;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 4;
-				WATCHOS_DEPLOYMENT_TARGET = 10.0;
 			};
 			name = Release;
 		};
@@ -473,6 +452,54 @@
 			};
 			name = Release;
 		};
+		AB501000 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = SnoringDetectorWatch/SnoringDetectorWatch.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8U48PF347K;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.hanabi.SnoringDetector;
+				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = NO;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hanabi.SnoringDetector.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10;
+			};
+			name = Debug;
+		};
+		AB502000 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = SnoringDetectorWatch/SnoringDetectorWatch.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 8U48PF347K;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.hanabi.SnoringDetector;
+				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = NO;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hanabi.SnoringDetector.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -485,20 +512,20 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		AB500000 /* Build configuration list for PBXNativeTarget "SnoringDetectorWatch" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				AB501000 /* Debug */,
-				AB502000 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
 		AA510000 /* Build configuration list for PBXProject "SnoringDetector" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				AA511000 /* Debug */,
 				AA512000 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AB500000 /* Build configuration list for PBXNativeTarget "SnoringDetectorWatch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AB501000 /* Debug */,
+				AB502000 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
